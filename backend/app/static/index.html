@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bug Bounty Hunter Bot — Security Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            darkbg: '#0f172a',
+            darkcard: '#1e293b',
+            darkborder: '#334155'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col font-sans">
+  
+  <!-- Navigation Header -->
+  <header class="bg-darkcard border-b border-darkborder sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-shield-halved text-blue-500 text-2xl"></i>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">Bug Bounty Hunter Bot</h1>
+          <p class="text-xs text-slate-400">Strict Scope & Ethical Vulnerability Management</p>
+        </div>
+      </div>
+      
+      <!-- Right Action Controls -->
+      <div class="flex items-center space-x-4">
+        <!-- Emergency Stop Indicator / Button -->
+        <div id="emergencyStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-950 border border-emerald-800 text-emerald-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="emergencyStatusText">SYSTEM OPERATIONAL</span>
+        </div>
+        <button onclick="toggleEmergencyStop()" id="btnEmergencyStop" class="px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>EMERGENCY STOP</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Secondary Navigation Tabs -->
+  <nav class="bg-slate-900 border-b border-darkborder">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 overflow-x-auto text-sm font-medium py-3">
+      <button onclick="switchTab('overview')" class="tab-btn text-blue-400 border-b-2 border-blue-500 pb-1" data-tab="overview">
+        <i class="fa-solid fa-chart-pie mr-1.5"></i>Overview
+      </button>
+      <button onclick="switchTab('programs')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="programs">
+        <i class="fa-solid fa-building-shield mr-1.5"></i>Programs & Scope
+      </button>
+      <button onclick="switchTab('scans')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="scans">
+        <i class="fa-solid fa-radar mr-1.5"></i>Scan Jobs
+      </button>
+      <button onclick="switchTab('findings')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="findings">
+        <i class="fa-solid fa-bug mr-1.5"></i>Findings
+      </button>
+      <button onclick="switchTab('approvals')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="approvals">
+        <i class="fa-solid fa-user-check mr-1.5"></i>Approvals
+        <span id="approvalCountBadge" class="hidden ml-1 px-1.5 py-0.2 bg-amber-500 text-slate-950 font-bold rounded-full text-[10px]">0</span>
+      </button>
+      <button onclick="switchTab('reports')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="reports">
+        <i class="fa-solid fa-file-lines mr-1.5"></i>Reports
+      </button>
+      <button onclick="switchTab('audit')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="audit">
+        <i class="fa-solid fa-fingerprint mr-1.5"></i>Audit Logs
+      </button>
+      <button onclick="switchTab('settings')" class="tab-btn text-slate-400 hover:text-slate-200 pb-1" data-tab="settings">
+        <i class="fa-solid fa-sliders mr-1.5"></i>Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- 1. OVERVIEW TAB -->
+    <section id="tab-overview" class="space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex items-center space-x-4">
+          <div class="p-3 bg-blue-950 text-blue-400 rounded-lg text-2xl">
+            <i class="fa-solid fa-shield"></i>
+          </div>
+          <div>
+            <div class="text-xs uppercase text-slate-400 font-semibold">Active Programs</div>
+            <div id="statPrograms" class="text-2xl font-bold text-white">0</div>
+          </div>
+        </div>
+        <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex items-center space-x-4">
+          <div class="p-3 bg-indigo-950 text-indigo-400 rounded-lg text-2xl">
+            <i class="fa-solid fa-network-wired"></i>
+          </div>
+          <div>
+            <div class="text-xs uppercase text-slate-400 font-semibold">Total Scans</div>
+            <div id="statScans" class="text-2xl font-bold text-white">0</div>
+          </div>
+        </div>
+        <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex items-center space-x-4">
+          <div class="p-3 bg-amber-950 text-amber-400 rounded-lg text-2xl">
+            <i class="fa-solid fa-bug"></i>
+          </div>
+          <div>
+            <div class="text-xs uppercase text-slate-400 font-semibold">Total Findings</div>
+            <div id="statFindings" class="text-2xl font-bold text-white">0</div>
+          </div>
+        </div>
+        <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex items-center space-x-4">
+          <div class="p-3 bg-emerald-950 text-emerald-400 rounded-lg text-2xl">
+            <i class="fa-solid fa-envelope-circle-check"></i>
+          </div>
+          <div>
+            <div class="text-xs uppercase text-slate-400 font-semibold">Alerts Sent</div>
+            <div id="statNotifications" class="text-2xl font-bold text-white">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action / Scope Checker Bar -->
+      <div class="bg-darkcard border border-darkborder p-5 rounded-lg space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold flex items-center text-slate-200">
+            <i class="fa-solid fa-microscope text-blue-400 mr-2"></i>
+            Live Scope & Authorization Engine Dry-Run
+          </h2>
+          <span class="text-xs text-slate-400">Default-DENY • Anti-SSRF • Non-destructive</span>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <select id="quickScopeProgram" class="bg-slate-900 border border-darkborder text-xs rounded px-3 py-2 text-slate-200">
+            <option value="">Select Program...</option>
+          </select>
+          <input id="quickScopeTarget" type="text" placeholder="Enter target domain or URL (e.g. api.example.com)..." class="flex-1 bg-slate-900 border border-darkborder text-xs rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+          <button onclick="testScopeDryRun()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded transition">
+            Verify Scope
+          </button>
+        </div>
+        <div id="scopeCheckResult" class="hidden p-3 rounded text-xs"></div>
+      </div>
+    </section>
+
+    <!-- 2. PROGRAMS & SCOPE TAB -->
+    <section id="tab-programs" class="hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-bold text-white">Authorized Bug Bounty Programs</h2>
+          <p class="text-xs text-slate-400">Only assets entered here can ever be scanned.</p>
+        </div>
+        <button onclick="openModal('modalCreateProgram')" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1.5 transition">
+          <i class="fa-solid fa-plus"></i>
+          <span>Add Program</span>
+        </button>
+      </div>
+
+      <div id="programsList" class="grid grid-cols-1 gap-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- 3. SCAN JOBS TAB -->
+    <section id="tab-scans" class="hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-bold text-white">Security Scan Jobs</h2>
+          <p class="text-xs text-slate-400">Safe, non-destructive automated checks with rate limits and SSRF blocking.</p>
+        </div>
+        <button onclick="openModal('modalLaunchScan')" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1.5 transition">
+          <i class="fa-solid fa-play"></i>
+          <span>Launch Scan</span>
+        </button>
+      </div>
+
+      <div class="bg-darkcard border border-darkborder rounded-lg overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-3">Job ID</th>
+              <th class="p-3">Program</th>
+              <th class="p-3">Target</th>
+              <th class="p-3">Mode</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Started</th>
+              <th class="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="scansTableBody" class="divide-y divide-darkborder">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4. FINDINGS TAB -->
+    <section id="tab-findings" class="hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-bold text-white">Identified Weaknesses & Findings</h2>
+          <p class="text-xs text-slate-400">Deduplicated findings with safe non-destructive evidence.</p>
+        </div>
+        <div class="flex space-x-2 text-xs">
+          <select id="filterSeverity" onchange="loadFindings()" class="bg-slate-900 border border-darkborder rounded px-2.5 py-1.5 text-slate-300">
+            <option value="">All Severities</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+            <option value="INFO">Info</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-darkcard border border-darkborder rounded-lg overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-3">Finding ID</th>
+              <th class="p-3">Severity</th>
+              <th class="p-3">Title & Category</th>
+              <th class="p-3">Target Asset</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Discovered</th>
+              <th class="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="findingsTableBody" class="divide-y divide-darkborder">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. APPROVALS TAB -->
+    <section id="tab-approvals" class="hidden space-y-6">
+      <div>
+        <h2 class="text-base font-bold text-white">Human Approval Queue (Mode C & D)</h2>
+        <p class="text-xs text-slate-400">Active tests require explicit human authorization before execution.</p>
+      </div>
+
+      <div id="approvalsList" class="space-y-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- 6. REPORTS TAB -->
+    <section id="tab-reports" class="hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-bold text-white">Generated Vulnerability Reports</h2>
+          <p class="text-xs text-slate-400">Professional, responsible disclosure reports ready for submission.</p>
+        </div>
+      </div>
+      <div id="reportsList" class="space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- 7. AUDIT LOGS TAB -->
+    <section id="tab-audit" class="hidden space-y-6">
+      <div>
+        <h2 class="text-base font-bold text-white">Immutable Security Audit Logs</h2>
+        <p class="text-xs text-slate-400">Verifiable trace of scope evaluations, SSRF blocks, and operator actions.</p>
+      </div>
+
+      <div class="bg-darkcard border border-darkborder rounded-lg overflow-hidden">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-3">Timestamp</th>
+              <th class="p-3">Actor</th>
+              <th class="p-3">Action</th>
+              <th class="p-3">Decision</th>
+              <th class="p-3">Target</th>
+              <th class="p-3">Reason / Details</th>
+            </tr>
+          </thead>
+          <tbody id="auditTableBody" class="divide-y divide-darkborder font-mono text-[11px]">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 8. SETTINGS TAB -->
+    <section id="tab-settings" class="hidden space-y-6">
+      <div>
+        <h2 class="text-base font-bold text-white">System & Notification Settings</h2>
+        <p class="text-xs text-slate-400">Inspect environment parameters, rate limiting, and email dispatch.</p>
+      </div>
+
+      <div class="bg-darkcard border border-darkborder p-5 rounded-lg space-y-4 max-w-xl">
+        <h3 class="text-sm font-semibold text-slate-200">Email Alert Delivery Test</h3>
+        <p class="text-xs text-slate-400">Verify that SMTP credentials in your environment variables can send alert emails.</p>
+        <div class="flex gap-2">
+          <input id="testEmailRecipient" type="email" placeholder="recipient@example.com" class="flex-1 bg-slate-900 border border-darkborder text-xs rounded px-3 py-2 text-slate-200">
+          <button onclick="sendTestEmail()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded">
+            Send Test Alert
+          </button>
+        </div>
+        <div id="testEmailResult" class="hidden p-3 rounded text-xs"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Modal: Create Program -->
+  <div id="modalCreateProgram" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+    <div class="bg-darkcard border border-darkborder w-full max-w-lg rounded-lg p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b border-darkborder pb-3">
+        <h3 class="text-sm font-bold text-white">Add Authorized Program</h3>
+        <button onclick="closeModal('modalCreateProgram')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Program Name *</label>
+          <input id="newProgName" type="text" placeholder="e.g. Acme Corp Public Bounty" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Platform / Source *</label>
+          <input id="newProgPlatform" type="text" placeholder="e.g. HackerOne / Bugcrowd / Self-hosted" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Official Program URL *</label>
+          <input id="newProgUrl" type="url" placeholder="https://hackerone.com/acme" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">In-Scope Target Pattern (e.g. *.acme.com or acme.com) *</label>
+          <input id="newProgScope" type="text" placeholder="*.acme.com" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Explicit Exclusions (Optional)</label>
+          <input id="newProgExclusion" type="text" placeholder="internal.acme.com" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-3 border-t border-darkborder">
+        <button onclick="closeModal('modalCreateProgram')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300">Cancel</button>
+        <button onclick="submitCreateProgram()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-semibold rounded text-white">Save Program</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Launch Scan -->
+  <div id="modalLaunchScan" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+    <div class="bg-darkcard border border-darkborder w-full max-w-md rounded-lg p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b border-darkborder pb-3">
+        <h3 class="text-sm font-bold text-white">Launch Security Scan</h3>
+        <button onclick="closeModal('modalLaunchScan')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Authorized Program *</label>
+          <select id="scanProgramSelect" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Target Asset *</label>
+          <input id="scanTargetInput" type="text" placeholder="api.acme.com" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+          <p class="text-[11px] text-slate-400 mt-1">Must be strictly in-scope and resolve to public IP.</p>
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Scan Mode *</label>
+          <select id="scanModeSelect" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+            <option value="SAFE_CHECKS">Mode B: SAFE_CHECKS (Headers, TLS, Passive)</option>
+            <option value="PASSIVE">Mode A: PASSIVE ONLY</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-3 border-t border-darkborder">
+        <button onclick="closeModal('modalLaunchScan')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300">Cancel</button>
+        <button onclick="submitLaunchScan()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-semibold rounded text-white">Start Scan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Finding Details & Report Generator -->
+  <div id="modalFindingDetail" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+    <div class="bg-darkcard border border-darkborder w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b border-darkborder pb-3">
+        <h3 id="modalFindingTitle" class="text-sm font-bold text-white">Finding Details</h3>
+        <button onclick="closeModal('modalFindingDetail')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <div id="modalFindingContent" class="space-y-3 text-xs text-slate-300">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="flex justify-between pt-3 border-t border-darkborder">
+        <button id="btnGenerateReport" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold rounded text-white flex items-center space-x-1.5">
+          <i class="fa-solid fa-file-pdf"></i>
+          <span>Generate Formal Report</span>
+        </button>
+        <button onclick="closeModal('modalFindingDetail')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    let currentTab = 'overview';
+    let programsCache = [];
+
+    async function apiCall(endpoint, method = 'GET', body = null) {
+      try {
+        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) options.body = JSON.stringify(body);
+        const res = await fetch('/api/v1' + endpoint, options);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || 'API request failed');
+        }
+        return await res.json();
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+        b.classList.add('text-slate-400');
+      });
+      
+      const targetSec = document.getElementById(`tab-${tab}`);
+      if (targetSec) targetSec.classList.remove('hidden');
+      
+      const targetBtn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+      if (targetBtn) {
+        targetBtn.classList.remove('text-slate-400');
+        targetBtn.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+      }
+
+      currentTab = tab;
+      refreshCurrentTab();
+    }
+
+    async function refreshCurrentTab() {
+      if (currentTab === 'overview') {
+        loadStatus();
+        loadProgramsDropdown();
+      } else if (currentTab === 'programs') {
+        loadPrograms();
+      } else if (currentTab === 'scans') {
+        loadScans();
+      } else if (currentTab === 'findings') {
+        loadFindings();
+      } else if (currentTab === 'approvals') {
+        loadApprovals();
+      } else if (currentTab === 'reports') {
+        loadReports();
+      } else if (currentTab === 'audit') {
+        loadAuditLogs();
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const status = await apiCall('/system/status');
+        document.getElementById('statPrograms').innerText = programsCache.length || 0;
+        document.getElementById('statScans').innerText = status.total_jobs;
+        document.getElementById('statFindings').innerText = status.total_findings;
+        document.getElementById('statNotifications').innerText = status.total_notifications;
+
+        const badge = document.getElementById('emergencyStatusBadge');
+        const text = document.getElementById('emergencyStatusText');
+        if (status.emergency_stop) {
+          badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-950 border border-rose-800 text-rose-400";
+          text.innerText = "EMERGENCY STOP ACTIVE";
+        } else {
+          badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-950 border border-emerald-800 text-emerald-400";
+          text.innerText = "SYSTEM OPERATIONAL";
+        }
+      } catch (e) {}
+    }
+
+    async function toggleEmergencyStop() {
+      const confirmAction = confirm("Are you sure you want to toggle the Emergency Stop? This halts all network actions.");
+      if (!confirmAction) return;
+      try {
+        const cur = await apiCall('/system/status');
+        await apiCall(`/system/emergency-stop?active=${!cur.emergency_stop}`, 'POST');
+        loadStatus();
+      } catch (e) {
+        alert("Failed to toggle emergency stop: " + e.message);
+      }
+    }
+
+    async function loadProgramsDropdown() {
+      try {
+        const progs = await apiCall('/programs');
+        programsCache = progs;
+        document.getElementById('statPrograms').innerText = progs.length;
+        const quickSelect = document.getElementById('quickScopeProgram');
+        const scanSelect = document.getElementById('scanProgramSelect');
+        
+        quickSelect.innerHTML = '<option value="">Select Program...</option>' + 
+          progs.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        scanSelect.innerHTML = progs.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      } catch (e) {}
+    }
+
+    async function testScopeDryRun() {
+      const progId = document.getElementById('quickScopeProgram').value;
+      const target = document.getElementById('quickScopeTarget').value.trim();
+      const resBox = document.getElementById('scopeCheckResult');
+
+      if (!progId || !target) {
+        alert("Please select a program and specify a target.");
+        return;
+      }
+
+      resBox.className = "p-3 rounded text-xs bg-slate-900 border border-darkborder block";
+      resBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Evaluating target...';
+
+      try {
+        const res = await apiCall(`/programs/${progId}/verify-scope?target=${encodeURIComponent(target)}`, 'POST');
+        if (res.allowed) {
+          resBox.className = "p-3 rounded text-xs bg-emerald-950 border border-emerald-800 text-emerald-300 block";
+          resBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i><strong>ALLOWED (In Scope)</strong>: ${res.reason}`;
+        } else {
+          resBox.className = "p-3 rounded text-xs bg-rose-950 border border-rose-800 text-rose-300 block";
+          resBox.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1.5"></i><strong>DENIED (Out of Scope / Blocked)</strong>: ${res.reason}`;
+        }
+      } catch (e) {
+        resBox.className = "p-3 rounded text-xs bg-rose-950 border border-rose-800 text-rose-300 block";
+        resBox.innerText = "Error: " + e.message;
+      }
+    }
+
+    async function loadPrograms() {
+      try {
+        const progs = await apiCall('/programs');
+        programsCache = progs;
+        const container = document.getElementById('programsList');
+        if (progs.length === 0) {
+          container.innerHTML = '<div class="p-6 bg-darkcard border border-darkborder text-center text-xs text-slate-400 rounded">No programs registered yet. Click "Add Program" above.</div>';
+          return;
+        }
+
+        container.innerHTML = progs.map(p => `
+          <div class="bg-darkcard border border-darkborder p-4 rounded-lg space-y-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="text-sm font-bold text-white">${p.name}</h3>
+                <span class="text-[11px] text-blue-400"><a href="${p.program_url}" target="_blank" rel="noopener">${p.platform} • ${p.program_url}</a></span>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${p.authorization_active ? 'bg-emerald-950 border border-emerald-800 text-emerald-300' : 'bg-rose-950 border border-rose-800 text-rose-300'}">
+                ${p.authorization_active ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2 border-t border-darkborder">
+              <div>
+                <span class="font-semibold text-emerald-400">In-Scope Patterns:</span>
+                <ul class="list-disc list-inside text-slate-300 mt-1 font-mono text-[11px]">
+                  ${p.in_scope_assets.map(a => `<li>${a.pattern} (${a.asset_type})</li>`).join('') || '<li>None</li>'}
+                </ul>
+              </div>
+              <div>
+                <span class="font-semibold text-rose-400">Excluded Patterns:</span>
+                <ul class="list-disc list-inside text-slate-300 mt-1 font-mono text-[11px]">
+                  ${p.excluded_assets.map(e => `<li>${e.pattern}</li>`).join('') || '<li>None</li>'}
+                </ul>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function submitCreateProgram() {
+      const name = document.getElementById('newProgName').value.trim();
+      const platform = document.getElementById('newProgPlatform').value.trim();
+      const url = document.getElementById('newProgUrl').value.trim();
+      const scope = document.getElementById('newProgScope').value.trim();
+      const excl = document.getElementById('newProgExclusion').value.trim();
+
+      if (!name || !platform || !url || !scope) {
+        alert("Please complete required fields.");
+        return;
+      }
+
+      const payload = {
+        name,
+        platform,
+        program_url: url,
+        in_scope_assets: [{
+          asset_type: scope.startsWith('*') ? 'WILDCARD' : 'DOMAIN',
+          pattern: scope
+        }],
+        excluded_assets: excl ? [{ pattern: excl, reason: "Explicit user exclusion" }] : []
+      };
+
+      try {
+        await apiCall('/programs', 'POST', payload);
+        closeModal('modalCreateProgram');
+        loadPrograms();
+        loadProgramsDropdown();
+      } catch (e) {
+        alert("Error creating program: " + e.message);
+      }
+    }
+
+    async function loadScans() {
+      try {
+        const scans = await apiCall('/scans');
+        const tbody = document.getElementById('scansTableBody');
+        if (scans.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">No scans executed yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = scans.map(s => `
+          <tr class="hover:bg-slate-800/50">
+            <td class="p-3 font-mono">#${s.id}</td>
+            <td class="p-3">Program ${s.program_id}</td>
+            <td class="p-3 font-mono text-slate-200">${s.target}</td>
+            <td class="p-3">${s.mode}</td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${
+                s.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400' :
+                s.status === 'RUNNING' ? 'bg-blue-950 text-blue-400' :
+                s.status.includes('BLOCKED') ? 'bg-rose-950 text-rose-400' : 'bg-slate-800 text-slate-400'
+              }">${s.status}</span>
+            </td>
+            <td class="p-3">${new Date(s.created_at).toLocaleTimeString()}</td>
+            <td class="p-3"><button onclick="viewScanEvents(${s.id})" class="text-blue-400 hover:underline">Events</button></td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function submitLaunchScan() {
+      const progId = parseInt(document.getElementById('scanProgramSelect').value);
+      const target = document.getElementById('scanTargetInput').value.trim();
+      const mode = document.getElementById('scanModeSelect').value;
+
+      if (!progId || !target) {
+        alert("Please specify target and program.");
+        return;
+      }
+
+      try {
+        await apiCall('/scans', 'POST', { program_id: progId, target, mode });
+        closeModal('modalLaunchScan');
+        loadScans();
+      } catch (e) {
+        alert("Error launching scan: " + e.message);
+      }
+    }
+
+    async function loadFindings() {
+      try {
+        const sev = document.getElementById('filterSeverity').value;
+        const url = '/findings' + (sev ? `?severity=${sev}` : '');
+        const findings = await apiCall(url);
+        const tbody = document.getElementById('findingsTableBody');
+        if (findings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">No findings identified.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = findings.map(f => `
+          <tr class="hover:bg-slate-800/50">
+            <td class="p-3 font-mono text-[11px] text-blue-400">${f.unique_finding_id}</td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                f.severity === 'CRITICAL' ? 'bg-rose-950 text-rose-400' :
+                f.severity === 'HIGH' ? 'bg-orange-950 text-orange-400' :
+                f.severity === 'MEDIUM' ? 'bg-amber-950 text-amber-400' : 'bg-blue-950 text-blue-400'
+              }">${f.severity}</span>
+            </td>
+            <td class="p-3">
+              <div class="font-medium text-slate-200">${f.title}</div>
+              <div class="text-[11px] text-slate-400">${f.category}</div>
+            </td>
+            <td class="p-3 font-mono text-slate-300">${f.asset}</td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-semibold">${f.status}</span>
+            </td>
+            <td class="p-3">${new Date(f.discovered_at).toLocaleDateString()}</td>
+            <td class="p-3">
+              <button onclick="viewFindingDetail(${f.id})" class="text-blue-400 hover:underline">Review</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function viewFindingDetail(findingId) {
+      try {
+        const f = await apiCall(`/findings/${findingId}`);
+        document.getElementById('modalFindingTitle').innerText = `${f.unique_finding_id} — ${f.title}`;
+        document.getElementById('modalFindingContent').innerHTML = `
+          <div><strong>Category:</strong> ${f.category}</div>
+          <div><strong>Target:</strong> <code class="font-mono">${f.asset}</code></div>
+          <div><strong>Severity:</strong> ${f.severity} • <strong>Confidence:</strong> ${f.confidence}</div>
+          <div class="pt-2"><strong>Description:</strong><p class="text-slate-300 mt-1">${f.description}</p></div>
+          <div class="pt-2"><strong>Evidence Summary:</strong><pre class="bg-slate-900 p-2 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap">${f.evidence_summary}</pre></div>
+          <div class="pt-2"><strong>Safe Reproduction:</strong><pre class="bg-slate-900 p-2 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap">${f.safe_reproduction || 'N/A'}</pre></div>
+          <div class="pt-2"><strong>Remediation:</strong><p class="text-slate-300 mt-1">${f.recommended_remediation || 'Standard hardening'}</p></div>
+        `;
+        document.getElementById('btnGenerateReport').onclick = () => generateReportFromFinding(f.id);
+        openModal('modalFindingDetail');
+      } catch (e) {
+        alert("Error loading finding: " + e.message);
+      }
+    }
+
+    async function generateReportFromFinding(findingId) {
+      try {
+        const rep = await apiCall(`/reports/generate/${findingId}`, 'POST');
+        alert("Vulnerability Report Generated! View it in the Reports tab.");
+        closeModal('modalFindingDetail');
+        switchTab('reports');
+      } catch (e) {
+        alert("Error generating report: " + e.message);
+      }
+    }
+
+    async function loadApprovals() {
+      try {
+        const approvals = await apiCall('/approvals');
+        const container = document.getElementById('approvalsList');
+        const badge = document.getElementById('approvalCountBadge');
+        
+        const pending = approvals.filter(a => a.status === 'PENDING');
+        if (pending.length > 0) {
+          badge.classList.remove('hidden');
+          badge.innerText = pending.length;
+        } else {
+          badge.classList.add('hidden');
+        }
+
+        if (approvals.length === 0) {
+          container.innerHTML = '<div class="p-6 bg-darkcard border border-darkborder text-center text-xs text-slate-400 rounded">No approval requests queued.</div>';
+          return;
+        }
+
+        container.innerHTML = approvals.map(a => `
+          <div class="bg-darkcard border border-darkborder p-4 rounded-lg space-y-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="text-sm font-bold text-white">${a.proposed_test}</h3>
+                <div class="text-xs text-slate-400">Target: <code class="font-mono text-blue-400">${a.target_asset}</code></div>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                a.status === 'PENDING' ? 'bg-amber-950 text-amber-400' :
+                a.status === 'APPROVED' ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'
+              }">${a.status}</span>
+            </div>
+            <div class="text-xs text-slate-300">
+              <strong>Reason:</strong> ${a.reason}<br>
+              <strong>Impact:</strong> ${a.expected_impact}
+            </div>
+            ${a.status === 'PENDING' ? `
+              <div class="flex space-x-2 pt-2 border-t border-darkborder">
+                <button onclick="decideApproval(${a.id}, 'APPROVED')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded">
+                  Approve Test
+                </button>
+                <button onclick="decideApproval(${a.id}, 'REJECTED')" class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded">
+                  Reject
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function decideApproval(id, decision) {
+      const reason = prompt(`Enter reason for ${decision}:`) || "";
+      try {
+        await apiCall(`/approvals/${id}/decide`, 'POST', { decision, reason });
+        loadApprovals();
+      } catch (e) {
+        alert("Error deciding approval: " + e.message);
+      }
+    }
+
+    async function loadReports() {
+      try {
+        const reps = await apiCall('/reports');
+        const container = document.getElementById('reportsList');
+        if (reps.length === 0) {
+          container.innerHTML = '<div class="p-6 bg-darkcard border border-darkborder text-center text-xs text-slate-400 rounded">No reports generated yet. Review a finding and click "Generate Report".</div>';
+          return;
+        }
+        container.innerHTML = reps.map(r => `
+          <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-bold text-white">${r.title}</h3>
+              <div class="text-xs text-slate-400">Created: ${new Date(r.created_at).toLocaleString()}</div>
+            </div>
+            <a href="/api/v1/reports/${r.id}/download" download="report.md" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1">
+              <i class="fa-solid fa-download"></i>
+              <span>Download Markdown</span>
+            </a>
+          </div>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadAuditLogs() {
+      try {
+        const logs = await apiCall('/system/audit-logs');
+        const tbody = document.getElementById('auditTableBody');
+        tbody.innerHTML = logs.map(l => `
+          <tr class="hover:bg-slate-800/50">
+            <td class="p-2.5 text-slate-400">${new Date(l.created_at).toLocaleTimeString()}</td>
+            <td class="p-2.5 font-semibold text-slate-300">${l.actor}</td>
+            <td class="p-2.5 text-blue-400">${l.action}</td>
+            <td class="p-2.5">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${l.decision === 'ALLOW' || l.decision === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'}">${l.decision}</span>
+            </td>
+            <td class="p-2.5 text-slate-200">${l.target || '-'}</td>
+            <td class="p-2.5 text-slate-400 truncate max-w-xs">${l.reason || '-'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function sendTestEmail() {
+      const recipient = document.getElementById('testEmailRecipient').value.trim();
+      const resBox = document.getElementById('testEmailResult');
+      resBox.className = "p-3 rounded text-xs bg-slate-900 border border-darkborder block";
+      resBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Testing email delivery...';
+      try {
+        const res = await apiCall(`/system/test-email?to_email=${encodeURIComponent(recipient)}`, 'POST');
+        if (res.success) {
+          resBox.className = "p-3 rounded text-xs bg-emerald-950 border border-emerald-800 text-emerald-300 block";
+          resBox.innerHTML = `Success! Test email sent to ${res.recipient}.`;
+        } else {
+          resBox.className = "p-3 rounded text-xs bg-amber-950 border border-amber-800 text-amber-300 block";
+          resBox.innerHTML = `Notice: ${res.error || 'SMTP delivery failed'}`;
+        }
+      } catch (e) {
+        resBox.className = "p-3 rounded text-xs bg-rose-950 border border-rose-800 text-rose-300 block";
+        resBox.innerText = "Error: " + e.message;
+      }
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadStatus();
+      loadProgramsDropdown();
+    });
+  </script>
+</body>
+</html>

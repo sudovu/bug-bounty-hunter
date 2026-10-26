@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  bot-server:
+    build: .
+    container_name: bug_bounty_bot
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=BugBountyHunterBot
+      - APP_ENV=production
+      - DEBUG=false
+      - DATABASE_URL=sqlite:///./data/bug_bounty_bot.db
+      - BLOCK_PRIVATE_NETWORKS=true
+      - BLOCK_CLOUD_METADATA=true
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro

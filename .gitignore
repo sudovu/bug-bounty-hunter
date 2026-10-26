@@ -1,0 +1,36 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment and secrets
+.env
+*.local
+*.key
+*.pem
+
+# Database
+*.sqlite3
+*.db
+data/
+
+# Logs
+*.log
+logs/
+
+# Node / Frontend builds
+node_modules/
+frontend/dist/
+frontend/build/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
