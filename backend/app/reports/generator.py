@@ -20,6 +20,15 @@ from backend.app.core.config import settings
 from backend.app.db.models import Finding, Program, VulnerabilityReport
 from backend.app.reports.remediation_catalog import get_detailed_solution
 
+def get_author_profile(custom_author: Optional[str] = None):
+    return {
+        "name": custom_author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (Vhuwon Mathers)"),
+        "role": getattr(settings, "DEFAULT_REPORT_AUTHOR_ROLE", "Network & Systems Engineer"),
+        "website": getattr(settings, "DEFAULT_REPORT_AUTHOR_WEBSITE", "https://gautambhuwan.com.np"),
+        "email": getattr(settings, "DEFAULT_REPORT_AUTHOR_EMAIL", "info@gautambhuwan.com.np"),
+        "github": getattr(settings, "DEFAULT_REPORT_AUTHOR_GITHUB", "https://github.com/sudovu")
+    }
+
 
 SEVERITY_COLORS = {
     "CRITICAL": RGBColor(220, 38, 38),   # Red
@@ -31,7 +40,13 @@ SEVERITY_COLORS = {
 
 
 def generate_finding_markdown_report(db: Session, finding: Finding, author: Optional[str] = None) -> str:
-    author_name = author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)")
+    prof = get_author_profile(author)
+    author_name = prof["name"]
+    author_role = prof["role"]
+    author_web = prof["website"]
+    author_email = prof["email"]
+    author_gh = prof["github"]
+
     program = db.query(Program).filter(Program.id == finding.program_id).first()
     program_name = program.name if program else "Authorized Security Program"
     program_url = program.program_url if program else "N/A"
@@ -47,7 +62,9 @@ def generate_finding_markdown_report(db: Session, finding: Finding, author: Opti
 
 ---
 **Report ID:** `{finding.unique_finding_id}`  
-**Auditor / Reported By:** {author_name}  
+**Auditor / Security Engineer:** [{author_name}]({author_web}) — {author_role}  
+**Engineering Hub:** [{author_web}]({author_web})  
+**Contact Email:** [{author_email}](mailto:{author_email}) | **GitHub:** [@sudovu]({author_gh})  
 **Program / Scope:** [{program_name}]({program_url})  
 **Target Asset:** `{finding.asset}`  
 **Severity:** **{finding.severity.value}**  
@@ -86,14 +103,20 @@ The following non-destructive verification steps can safely confirm the reported
 {detailed_solution}
 
 ---
-*Report prepared by {author_name}. Bug Bounty Hunter Bot (Strict Scope & Ethical Auditing).*
+*Report prepared by {author_name} ({author_role} | [{author_web}]({author_web})). Bug Bounty Hunter Bot.*
 """
     return report_md
 
 
 def generate_finding_text_report(db: Session, finding: Finding, author: Optional[str] = None) -> str:
     """Generate clean plain text (.txt) report suitable for text editors and form submissions."""
-    author_name = author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)")
+    prof = get_author_profile(author)
+    author_name = prof["name"]
+    author_role = prof["role"]
+    author_web = prof["website"]
+    author_email = prof["email"]
+    author_gh = prof["github"]
+
     program = db.query(Program).filter(Program.id == finding.program_id).first()
     program_name = program.name if program else "Authorized Security Program"
     detailed_solution = get_detailed_solution(finding.category, finding.title, finding.asset, finding.recommended_remediation)
@@ -109,7 +132,11 @@ def generate_finding_text_report(db: Session, finding: Finding, author: Optional
         "=" * 76,
         "",
         f"Report ID:           {finding.unique_finding_id}",
-        f"Auditor / Reporter:  {author_name}",
+        f"Auditor:             {author_name}",
+        f"Professional Role:   {author_role}",
+        f"Engineering Hub:     {author_web}",
+        f"Contact Email:       {author_email}",
+        f"GitHub Profile:      {author_gh} (@sudovu)",
         f"Program / Scope:     {program_name}",
         f"Target Asset:        {finding.asset}",
         f"Category:            {finding.category}",
@@ -149,7 +176,8 @@ def generate_finding_text_report(db: Session, finding: Finding, author: Optional
         detailed_solution,
         "",
         "=" * 76,
-        f"Report prepared by: {author_name}",
+        f"Report prepared by: {author_name} — {author_role}",
+        f"Engineering Hub: {author_web} | Email: {author_email}",
         "Bug Bounty Hunter Bot (Strict Scope & Ethical Auditing)",
         "=" * 76
     ]
@@ -158,7 +186,13 @@ def generate_finding_text_report(db: Session, finding: Finding, author: Optional
 
 def generate_finding_docx_report(db: Session, finding: Finding, author: Optional[str] = None) -> bytes:
     """Generate professional Word Document (.docx) report with formatting and tables."""
-    author_name = author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)")
+    prof = get_author_profile(author)
+    author_name = prof["name"]
+    author_role = prof["role"]
+    author_web = prof["website"]
+    author_email = prof["email"]
+    author_gh = prof["github"]
+
     program = db.query(Program).filter(Program.id == finding.program_id).first()
     program_name = program.name if program else "Authorized Security Program"
     detailed_solution = get_detailed_solution(finding.category, finding.title, finding.asset, finding.recommended_remediation)
@@ -174,25 +208,26 @@ def generate_finding_docx_report(db: Session, finding: Finding, author: Optional
     title_p.paragraph_format.space_after = Pt(4)
 
     sub_p = doc.add_paragraph()
-    sub_run = sub_p.add_run(f"Finding: {finding.title}")
-    sub_run.font.size = Pt(13)
+    sub_run = sub_p.add_run(f"Finding: {finding.title} | Audited by: {author_name} ({author_role})")
+    sub_run.font.size = Pt(11)
     sub_run.font.bold = True
     sub_run.font.color.rgb = RGBColor(71, 85, 105)
-    sub_p.paragraph_format.space_after = Pt(14)
+    sub_p.paragraph_format.space_after = Pt(12)
 
     # Metadata Table
-    table = doc.add_table(rows=7, cols=2)
+    table = doc.add_table(rows=8, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = True
 
     meta_rows = [
         ("Report Identifier", finding.unique_finding_id),
-        ("Auditor / Reporter", author_name),
+        ("Lead Security Auditor", f"{author_name} ({author_role})"),
+        ("Engineering Hub", author_web),
+        ("Auditor Contact", f"{author_email} | GitHub: @sudovu"),
         ("Target Asset", finding.asset),
         ("Program / Scope", program_name),
         ("Severity Rating", finding.severity.value),
         ("Weakness Category", finding.category),
-        ("Discovered Timestamp", finding.discovered_at.strftime('%Y-%m-%d %H:%M:%S UTC'))
     ]
 
     for i, (label, val) in enumerate(meta_rows):
@@ -272,7 +307,10 @@ def generate_finding_docx_report(db: Session, finding: Finding, author: Optional
 
 def generate_full_audit_docx_report(db: Session, program_id: Optional[int] = None, author: Optional[str] = None) -> bytes:
     """Generate a comprehensive multi-finding audit report in Word Document (.docx) format."""
-    author_name = author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)")
+    prof = get_author_profile(author)
+    author_name = prof["name"]
+    author_role = prof["role"]
+    author_web = prof["website"]
     query = db.query(Finding)
     if program_id:
         query = query.filter(Finding.program_id == program_id)
@@ -293,7 +331,7 @@ def generate_full_audit_docx_report(db: Session, program_id: Optional[int] = Non
     t_run.font.color.rgb = RGBColor(15, 23, 42)
 
     sub_p = doc.add_paragraph()
-    sub_run = sub_p.add_run(f"Auditor: {author_name} | Scope: {prog_title} | Total Findings: {len(findings)} | Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+    sub_run = sub_p.add_run(f"Auditor: {author_name} ({author_role} | {author_web}) | Scope: {prog_title} | Total Findings: {len(findings)} | Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     sub_run.font.size = Pt(11)
     sub_run.font.color.rgb = RGBColor(71, 85, 105)
 
@@ -350,7 +388,11 @@ def generate_full_audit_docx_report(db: Session, program_id: Optional[int] = Non
 
 def generate_full_audit_text_report(db: Session, program_id: Optional[int] = None, author: Optional[str] = None) -> str:
     """Generate a combined plain text (.txt) report for all findings."""
-    author_name = author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)")
+    prof = get_author_profile(author)
+    author_name = prof["name"]
+    author_role = prof["role"]
+    author_web = prof["website"]
+    author_email = prof["email"]
     query = db.query(Finding)
     if program_id:
         query = query.filter(Finding.program_id == program_id)
@@ -364,7 +406,7 @@ def generate_full_audit_text_report(db: Session, program_id: Optional[int] = Non
     lines = [
         "=" * 80,
         f"COMPREHENSIVE SECURITY AUDIT REPORT: {prog_title.upper()}",
-        f"Auditor / Prepared By: {author_name}",
+        f"Auditor:             {author_name} ({author_role})\nEngineering Hub:     {author_web}\nContact Email:       {author_email}",
         f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | Total Findings: {len(findings)}",
         "=" * 80,
         "",
@@ -398,7 +440,10 @@ def generate_full_audit_text_report(db: Session, program_id: Optional[int] = Non
 
 def generate_docx_from_markdown(markdown_text: str, title: str = "Vulnerability Report", author: Optional[str] = None) -> bytes:
     """Convert Markdown report text to a formatted Word Document (.docx)."""
-    author_name = author or getattr(settings, "DEFAULT_REPORT_AUTHOR", "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)")
+    prof = get_author_profile(author)
+    author_name = prof["name"]
+    author_role = prof["role"]
+    author_web = prof["website"]
     doc = Document()
 
     t_p = doc.add_paragraph()
@@ -408,7 +453,7 @@ def generate_docx_from_markdown(markdown_text: str, title: str = "Vulnerability 
     t_run.font.color.rgb = RGBColor(15, 23, 42)
 
     sub_p = doc.add_paragraph()
-    sub_run = sub_p.add_run(f"Auditor / Reporter: {author_name}")
+    sub_run = sub_p.add_run(f"Auditor: {author_name} ({author_role} | {author_web})")
     sub_run.font.size = Pt(10)
     sub_run.font.color.rgb = RGBColor(71, 85, 105)
 

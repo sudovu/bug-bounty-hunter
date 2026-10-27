@@ -815,7 +815,7 @@
       } catch (e) {}
     }
 
-    const DEFAULT_AUDITOR_NAME = "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)";
+    const DEFAULT_AUDITOR_NAME = "Bhuwan Gautam (Vhuwon Mathers)";
     const findingsReportExported = {};
 
     function getDetailedSolutionHtml(f) {
@@ -929,7 +929,7 @@ Apache: ServerTokens Prod && ServerSignature Off</pre>
               <span>Immediate Action Plan Locked (Documentation Required)</span>
             </div>
             <p class="text-slate-300 text-[11px]">
-              Per Everest Wireless Network IT audit policy, you must first <strong>Export Word (.docx)</strong>, <strong>Export Text (.txt)</strong>, or <strong>Save Formal Report</strong> below to document the audit trail before immediate action can be taken.
+              Per security audit change-control policy, you must first <strong>Export Word (.docx)</strong>, <strong>Export Text (.txt)</strong>, or <strong>Save Formal Report</strong> below to document the finding before executing immediate containment actions.
             </p>
           </div>
         `;
@@ -980,9 +980,22 @@ Apache: ServerTokens Prod && ServerSignature Off</pre>
         const f = await apiCall(`/findings/${findingId}`);
         document.getElementById('modalFindingTitle').innerText = `${f.unique_finding_id} — ${f.title}`;
         document.getElementById('modalFindingContent').innerHTML = `
-          <div class="p-2.5 bg-slate-900/80 border border-slate-800 rounded text-xs text-slate-300 flex items-center justify-between">
-            <div><strong>Auditor / Lead IT Officer:</strong> <span class="text-blue-400 font-semibold">Bhuwan Gautam</span> <span class="text-slate-400">(Everest Wireless Network Pvt. Ltd.)</span></div>
-            <span class="text-[10px] font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded">Target: ewnet.com.np</span>
+          <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-lg text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow">
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="text-slate-400 font-semibold">Lead Auditor:</span>
+                <a href="https://gautambhuwan.com.np" target="_blank" class="text-blue-400 font-bold hover:underline">Bhuwan Gautam (Vhuwon Mathers)</a>
+                <span class="text-slate-400 text-[11px]">— Network & Systems Engineer</span>
+              </div>
+              <div class="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                <a href="https://gautambhuwan.com.np" target="_blank" class="text-slate-300 hover:text-blue-300 transition"><i class="fa-solid fa-globe mr-1 text-blue-400"></i>gautambhuwan.com.np</a>
+                <span class="text-slate-300"><i class="fa-solid fa-envelope mr-1 text-slate-400"></i>info@gautambhuwan.com.np</span>
+                <a href="https://github.com/sudovu" target="_blank" class="text-slate-300 hover:text-white transition"><i class="fa-brands fa-github mr-1 text-slate-400"></i>@sudovu</a>
+              </div>
+            </div>
+            <div class="text-left sm:text-right">
+              <span class="text-[10px] font-mono px-2 py-0.5 bg-blue-950 text-blue-300 border border-blue-800 rounded">Audit Target: ewnet.com.np</span>
+            </div>
           </div>
           <div><strong>Category:</strong> ${f.category}</div>
           <div><strong>Target:</strong> <code class="font-mono text-blue-300">${f.asset}</code></div>

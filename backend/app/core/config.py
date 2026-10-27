@@ -38,8 +38,12 @@ class Settings(BaseSettings):
     AUTO_SEED_DEFAULT_PROGRAM: bool = True
     AUTO_SCAN_TARGET_FILTER: str = "ewnet.com.np"  # Restrict automated scheduler strictly to ewnet.com.np targets
 
-    # Reporting & Audit Identity
-    DEFAULT_REPORT_AUTHOR: str = "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)"
+    # Reporting & Auditor Profile (from gautambhuwan.com.np)
+    DEFAULT_REPORT_AUTHOR: str = "Bhuwan Gautam (Vhuwon Mathers)"
+    DEFAULT_REPORT_AUTHOR_ROLE: str = "Network & Systems Engineer"
+    DEFAULT_REPORT_AUTHOR_WEBSITE: str = "https://gautambhuwan.com.np"
+    DEFAULT_REPORT_AUTHOR_EMAIL: str = "info@gautambhuwan.com.np"
+    DEFAULT_REPORT_AUTHOR_GITHUB: str = "https://github.com/sudovu"
 
     # Security & SSRF Safeguards
     BLOCK_PRIVATE_NETWORKS: bool = True
