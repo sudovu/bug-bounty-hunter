@@ -277,10 +277,20 @@
 
     <!-- 6. REPORTS TAB -->
     <section id="tab-reports" class="hidden space-y-6">
-      <div class="flex justify-between items-center">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 class="text-base font-bold text-white">Generated Vulnerability Reports</h2>
-          <p class="text-xs text-slate-400">Professional, responsible disclosure reports ready for submission.</p>
+          <h2 class="text-base font-bold text-white">Generated Vulnerability Reports & Exports</h2>
+          <p class="text-xs text-slate-400">Download executive Word documents (.docx) or plain text summaries (.txt) ready for disclosure.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <a href="/api/v1/reports/export-all?format=docx" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1.5 shadow transition">
+            <i class="fa-solid fa-file-word"></i>
+            <span>Export All (.DOCX)</span>
+          </a>
+          <a href="/api/v1/reports/export-all?format=txt" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded flex items-center space-x-1.5 shadow transition">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>Export All (.TXT)</span>
+          </a>
         </div>
       </div>
       <div id="reportsList" class="space-y-3">
@@ -483,11 +493,21 @@
       <div id="modalFindingContent" class="space-y-3 text-xs text-slate-300">
         <!-- Rendered dynamically -->
       </div>
-      <div class="flex justify-between pt-3 border-t border-darkborder">
-        <button id="btnGenerateReport" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold rounded text-white flex items-center space-x-1.5">
-          <i class="fa-solid fa-file-pdf"></i>
-          <span>Generate Formal Report</span>
-        </button>
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-darkborder">
+        <div class="flex items-center space-x-2">
+          <a id="btnExportDocx" href="#" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-semibold rounded text-white flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-file-word"></i>
+            <span>Export Word (.docx)</span>
+          </a>
+          <a id="btnExportTxt" href="#" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-semibold rounded text-white flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>Export Text (.txt)</span>
+          </a>
+          <button id="btnGenerateReport" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold rounded text-white flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>Save Report</span>
+          </button>
+        </div>
         <button onclick="closeModal('modalFindingDetail')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300">Close</button>
       </div>
     </div>
@@ -805,6 +825,8 @@
           <div class="pt-2"><strong>Safe Reproduction:</strong><pre class="bg-slate-900 p-2 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap">${f.safe_reproduction || 'N/A'}</pre></div>
           <div class="pt-2"><strong>Remediation:</strong><p class="text-slate-300 mt-1">${f.recommended_remediation || 'Standard hardening'}</p></div>
         `;
+        document.getElementById('btnExportDocx').href = `/api/v1/reports/finding/${f.id}/export?format=docx`;
+        document.getElementById('btnExportTxt').href = `/api/v1/reports/finding/${f.id}/export?format=txt`;
         document.getElementById('btnGenerateReport').onclick = () => generateReportFromFinding(f.id);
         openModal('modalFindingDetail');
       } catch (e) {
@@ -892,15 +914,25 @@
           return;
         }
         container.innerHTML = reps.map(r => `
-          <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex justify-between items-center">
+          <div class="bg-darkcard border border-darkborder p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-bold text-white">${r.title}</h3>
-              <div class="text-xs text-slate-400">Created: ${new Date(r.created_at).toLocaleString()}</div>
+              <div class="text-xs text-slate-400 mt-0.5">Created: ${new Date(r.created_at).toLocaleString()}</div>
             </div>
-            <a href="/api/v1/reports/${r.id}/download" download="report.md" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1">
-              <i class="fa-solid fa-download"></i>
-              <span>Download Markdown</span>
-            </a>
+            <div class="flex items-center space-x-2">
+              <a href="/api/v1/reports/${r.id}/download?format=docx" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1 transition" title="Download Microsoft Word document">
+                <i class="fa-solid fa-file-word"></i>
+                <span>Word (.docx)</span>
+              </a>
+              <a href="/api/v1/reports/${r.id}/download?format=txt" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded flex items-center space-x-1 transition" title="Download Plain Text report">
+                <i class="fa-solid fa-file-lines"></i>
+                <span>Text (.txt)</span>
+              </a>
+              <a href="/api/v1/reports/${r.id}/download?format=md" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded flex items-center space-x-1 border border-slate-700 transition" title="Download Markdown file">
+                <i class="fa-solid fa-download"></i>
+                <span>Markdown (.md)</span>
+              </a>
+            </div>
           </div>
         `).join('');
       } catch (e) {}
