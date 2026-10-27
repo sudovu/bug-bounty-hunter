@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     SCAN_TIMEOUT_SECONDS: int = 30
     GLOBAL_EMERGENCY_STOP: bool = False
 
+    # Automated Periodic Scanning & Seeding
+    AUTO_SCAN_ENABLED: bool = True
+    AUTO_SCAN_INTERVAL_MINUTES: int = 60
+    AUTO_SEED_DEFAULT_PROGRAM: bool = True
+
     # Security & SSRF Safeguards
     BLOCK_PRIVATE_NETWORKS: bool = True
     BLOCK_CLOUD_METADATA: bool = True

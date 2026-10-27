@@ -1,13 +1,14 @@
 """API Endpoints for System Status, Emergency Stop, and Audit Logs."""
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from backend.app.db.base import get_db
+from backend.app.db.base import get_db, SessionLocal
 from backend.app.core.emergency import emergency_control
 from backend.app.core.config import settings
-from backend.app.db.models import AuditLog, EmailNotification, ScanJob, Finding
+from backend.app.db.models import AuditLog, EmailNotification, ScanJob, Finding, Program
 from backend.app.notifications.email_service import EmailService
+from backend.app.engine.scheduler import auto_scan_all_active_programs, seed_default_program
 
 router = APIRouter()
 
@@ -19,10 +20,13 @@ def get_system_status(db: Session = Depends(get_db)):
         "emergency_stop": emergency_control.is_global_stopped(),
         "email_notifications_enabled": settings.EMAIL_NOTIFICATIONS_ENABLED,
         "smtp_configured": bool(settings.SMTP_HOST),
+        "total_programs": db.query(Program).filter(Program.authorization_active == True).count(),
         "total_jobs": db.query(ScanJob).count(),
         "total_findings": db.query(Finding).count(),
         "total_notifications": db.query(EmailNotification).count(),
         "total_audit_events": db.query(AuditLog).count(),
+        "auto_scan_enabled": settings.AUTO_SCAN_ENABLED,
+        "auto_scan_interval_minutes": settings.AUTO_SCAN_INTERVAL_MINUTES
     }
 
 
@@ -57,3 +61,30 @@ def get_audit_logs(limit: int = 100, db: Session = Depends(get_db)):
     """Query recent immutable security audit logs."""
     logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all()
     return logs
+
+
+@router.post("/seed-demo")
+def seed_demo_program_endpoint(force: bool = False, db: Session = Depends(get_db)):
+    """Seed the default authorized demo program with in-scope target asset."""
+    prog = seed_default_program(db, force=force)
+    return {
+        "status": "success",
+        "program_id": prog.id,
+        "name": prog.name,
+        "platform": prog.platform
+    }
+
+
+async def _background_auto_scan():
+    db = SessionLocal()
+    try:
+        await auto_scan_all_active_programs(db)
+    finally:
+        db.close()
+
+
+@router.post("/auto-scan/trigger")
+def trigger_auto_scan(background_tasks: BackgroundTasks):
+    """Trigger an immediate automated scan across all active authorized programs."""
+    background_tasks.add_task(_background_auto_scan)
+    return {"status": "enqueued", "message": "Automated scan job triggered across all active programs."}

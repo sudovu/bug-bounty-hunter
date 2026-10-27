@@ -1,5 +1,6 @@
 """Main FastAPI Application Entrypoint."""
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,13 +10,24 @@ from fastapi.responses import FileResponse
 from backend.app.core.config import settings
 from backend.app.db.base import Base, engine
 from backend.app.api.v1.api import api_router
+from backend.app.engine.scheduler import start_background_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize database tables
     Base.metadata.create_all(bind=engine)
-    yield
+
+    # Start automated background scanning and program seeding
+    scheduler_task = asyncio.create_task(start_background_scheduler())
+    try:
+        yield
+    finally:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
