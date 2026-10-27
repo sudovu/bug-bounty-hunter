@@ -42,29 +42,36 @@ def redact_sensitive_text(text: str) -> str:
 class EmailService:
     @staticmethod
     def send_email_raw(to_email: str, subject: str, body_text: str) -> Tuple[bool, Optional[str]]:
-        """Dispatch email over SMTP if enabled, otherwise simulate safely."""
-        if not settings.EMAIL_NOTIFICATIONS_ENABLED or not settings.SMTP_HOST:
-            return False, "SMTP is disabled or not configured in environment settings."
+        """Dispatch email over SMTP if enabled, otherwise return informative error."""
+        if not settings.is_email_enabled or not settings.SMTP_HOST:
+            return False, "SMTP is disabled or not configured in environment settings (SMTP_HOST or credentials missing)."
+
+        recipient = to_email or settings.effective_alert_to_email
+        from_email = settings.effective_alert_from_email
+
+        if not recipient:
+            return False, "No recipient email address specified."
 
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = settings.ALERT_FROM_EMAIL
-            msg["To"] = to_email
+            msg["From"] = from_email
+            msg["To"] = recipient
 
-            part = MIMEText(body_text, "plain")
+            part = MIMEText(body_text, "plain", "utf-8")
             msg.attach(part)
 
-            if settings.SMTP_USE_TLS:
-                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
-                server.starttls()
+            if settings.SMTP_PORT == 465:
+                server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=12)
             else:
-                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
+                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=12)
+                if settings.SMTP_USE_TLS:
+                    server.starttls()
 
             if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
 
-            server.sendmail(settings.ALERT_FROM_EMAIL, [to_email], msg.as_string())
+            server.sendmail(from_email, [recipient], msg.as_string())
             server.quit()
             return True, None
         except Exception as e:
@@ -86,6 +93,8 @@ class EmailService:
             finding.asset,
             finding.title
         )
+
+        target_recipient = settings.effective_alert_to_email
 
         # Check deduplication
         existing = db.query(EmailNotification).filter(
@@ -120,7 +129,7 @@ class EmailService:
         if existing:
             # Skip sending duplicate notification
             notification = EmailNotification(
-                recipient=settings.ALERT_TO_EMAIL,
+                recipient=target_recipient,
                 subject=subject,
                 notification_type="NEW_FINDING",
                 deduplication_key=dedup_key,
@@ -133,10 +142,10 @@ class EmailService:
             db.commit()
             return notification
 
-        success, error_msg = cls.send_email_raw(settings.ALERT_TO_EMAIL, subject, body)
+        success, error_msg = cls.send_email_raw(target_recipient, subject, body)
 
         notification = EmailNotification(
-            recipient=settings.ALERT_TO_EMAIL,
+            recipient=target_recipient,
             subject=subject,
             notification_type="NEW_FINDING",
             deduplication_key=dedup_key,
@@ -169,6 +178,7 @@ class EmailService:
     ) -> EmailNotification:
         """Notify researcher that an active test is requesting explicit approval."""
         dedup_key = generate_deduplication_hash("approval_request", str(approval_id), token)
+        target_recipient = settings.effective_alert_to_email
 
         subject = APPROVAL_REQUEST_SUBJECT.format(
             target_asset=target_asset,
@@ -189,10 +199,10 @@ class EmailService:
         )
         body = redact_sensitive_text(body_raw)
 
-        success, error_msg = cls.send_email_raw(settings.ALERT_TO_EMAIL, subject, body)
+        success, error_msg = cls.send_email_raw(target_recipient, subject, body)
 
         notification = EmailNotification(
-            recipient=settings.ALERT_TO_EMAIL,
+            recipient=target_recipient,
             subject=subject,
             notification_type="APPROVAL_REQUEST",
             deduplication_key=dedup_key,

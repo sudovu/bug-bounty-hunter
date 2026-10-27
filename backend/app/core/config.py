@@ -42,6 +42,32 @@ class Settings(BaseSettings):
     BLOCK_CLOUD_METADATA: bool = True
     DEFAULT_ALLOWLIST_MODE: str = "STRICT"
 
+    @property
+    def effective_alert_from_email(self) -> str:
+        # If user explicitly set ALERT_FROM_EMAIL and it's not the dummy example, use it
+        if self.ALERT_FROM_EMAIL and self.ALERT_FROM_EMAIL != "scanner-alerts@example.com":
+            return self.ALERT_FROM_EMAIL
+        # Otherwise default to SMTP_USERNAME (e.g. Gmail strictly requires From to match username)
+        if self.SMTP_USERNAME and "@" in self.SMTP_USERNAME:
+            return self.SMTP_USERNAME
+        return self.ALERT_FROM_EMAIL
+
+    @property
+    def effective_alert_to_email(self) -> str:
+        if self.ALERT_TO_EMAIL and self.ALERT_TO_EMAIL != "security-researcher@example.com":
+            return self.ALERT_TO_EMAIL
+        # If not set, default to SMTP_USERNAME (send alerts to the configured user)
+        if self.SMTP_USERNAME and "@" in self.SMTP_USERNAME:
+            return self.SMTP_USERNAME
+        return self.ALERT_TO_EMAIL
+
+    @property
+    def is_email_enabled(self) -> bool:
+        if self.EMAIL_NOTIFICATIONS_ENABLED:
+            return True
+        # Auto-enable if SMTP host and username are provided
+        return bool(self.SMTP_HOST and self.SMTP_USERNAME)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

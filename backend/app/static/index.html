@@ -318,19 +318,84 @@
     <section id="tab-settings" class="hidden space-y-6">
       <div>
         <h2 class="text-base font-bold text-white">System & Notification Settings</h2>
-        <p class="text-xs text-slate-400">Inspect environment parameters, rate limiting, and email dispatch.</p>
+        <p class="text-xs text-slate-400">Inspect email parameters, SMTP diagnostic logs, and dispatch tests.</p>
       </div>
 
-      <div class="bg-darkcard border border-darkborder p-5 rounded-lg space-y-4 max-w-xl">
-        <h3 class="text-sm font-semibold text-slate-200">Email Alert Delivery Test</h3>
-        <p class="text-xs text-slate-400">Verify that SMTP credentials in your environment variables can send alert emails.</p>
-        <div class="flex gap-2">
-          <input id="testEmailRecipient" type="email" placeholder="recipient@example.com" class="flex-1 bg-slate-900 border border-darkborder text-xs rounded px-3 py-2 text-slate-200">
-          <button onclick="sendTestEmail()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded">
-            Send Test Alert
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- SMTP Status Card -->
+        <div class="bg-darkcard border border-darkborder p-5 rounded-lg space-y-3 text-xs">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-server text-blue-400"></i>
+            Active SMTP Configuration
+          </h3>
+          <div class="space-y-2 text-slate-300">
+            <div class="flex justify-between border-b border-darkborder/60 pb-1.5">
+              <span class="text-slate-400">SMTP Host:</span>
+              <span id="cfgSmtpHost" class="font-mono text-white">Loading...</span>
+            </div>
+            <div class="flex justify-between border-b border-darkborder/60 pb-1.5">
+              <span class="text-slate-400">Sender (From):</span>
+              <span id="cfgSenderEmail" class="font-mono text-white">Loading...</span>
+            </div>
+            <div class="flex justify-between border-b border-darkborder/60 pb-1.5">
+              <span class="text-slate-400">Alert Recipient (To):</span>
+              <span id="cfgRecipientEmail" class="font-mono text-white">Loading...</span>
+            </div>
+            <div class="flex justify-between border-b border-darkborder/60 pb-1.5">
+              <span class="text-slate-400">Delivery Status:</span>
+              <span id="cfgDeliveryStatus" class="font-bold">Checking...</span>
+            </div>
+          </div>
+          <div class="pt-2">
+            <button onclick="resendAlerts()" id="btnResendAlerts" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-darkborder text-xs font-semibold rounded flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-rotate text-blue-400"></i>
+              <span>Re-send Email Alerts for Existing Findings</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Email Delivery Test Card -->
+        <div class="bg-darkcard border border-darkborder p-5 rounded-lg space-y-3">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-paper-plane text-emerald-400"></i>
+            Email Alert Delivery Test
+          </h3>
+          <p class="text-xs text-slate-400">Send an instant test email to verify that your SMTP credentials and network connection work.</p>
+          <div class="flex gap-2">
+            <input id="testEmailRecipient" type="email" placeholder="recipient@example.com" class="flex-1 bg-slate-900 border border-darkborder text-xs rounded px-3 py-2 text-slate-200">
+            <button onclick="sendTestEmail()" id="btnSendTest" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded whitespace-nowrap">
+              Send Test Alert
+            </button>
+          </div>
+          <div id="testEmailResult" class="hidden p-3 rounded text-xs"></div>
+        </div>
+      </div>
+
+      <!-- Recent Notification Delivery Logs -->
+      <div class="bg-darkcard border border-darkborder rounded-lg overflow-hidden space-y-3 p-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-400"></i>
+            Recent Email Delivery Logs & Statuses
+          </h3>
+          <button onclick="loadNotificationLogs()" class="text-xs text-blue-400 hover:text-blue-300">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Logs
           </button>
         </div>
-        <div id="testEmailResult" class="hidden p-3 rounded text-xs"></div>
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-2.5">Time</th>
+              <th class="p-2.5">Recipient</th>
+              <th class="p-2.5">Subject</th>
+              <th class="p-2.5">Status</th>
+              <th class="p-2.5">Error / Details</th>
+            </tr>
+          </thead>
+          <tbody id="notificationsTableBody" class="divide-y divide-darkborder">
+            <tr><td colspan="5" class="p-3 text-center text-slate-500">Loading delivery logs...</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -485,6 +550,8 @@
         loadReports();
       } else if (currentTab === 'audit') {
         loadAuditLogs();
+      } else if (currentTab === 'settings') {
+        loadSettingsTab();
       }
     }
 

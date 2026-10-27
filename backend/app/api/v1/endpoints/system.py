@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 from backend.app.db.base import get_db, SessionLocal
 from backend.app.core.emergency import emergency_control
 from backend.app.core.config import settings
-from backend.app.db.models import AuditLog, EmailNotification, ScanJob, Finding, Program
+from backend.app.db.models import (
+    AuditLog, EmailNotification, NotificationStatus,
+    ScanJob, Finding, Program
+)
 from backend.app.notifications.email_service import EmailService
 from backend.app.engine.scheduler import auto_scan_all_active_programs, seed_default_program
 
@@ -16,14 +19,23 @@ router = APIRouter()
 @router.get("/status")
 def get_system_status(db: Session = Depends(get_db)):
     """Retrieve operational state, emergency stop flags, and counts."""
+    sent_count = db.query(EmailNotification).filter(EmailNotification.status == NotificationStatus.SENT).count()
+    failed_count = db.query(EmailNotification).filter(EmailNotification.status == NotificationStatus.FAILED).count()
+    total_notifications = db.query(EmailNotification).count()
+
     return {
         "emergency_stop": emergency_control.is_global_stopped(),
-        "email_notifications_enabled": settings.EMAIL_NOTIFICATIONS_ENABLED,
+        "email_notifications_enabled": settings.is_email_enabled,
         "smtp_configured": bool(settings.SMTP_HOST),
+        "smtp_host": settings.SMTP_HOST,
+        "alert_to_email": settings.effective_alert_to_email,
+        "alert_from_email": settings.effective_alert_from_email,
         "total_programs": db.query(Program).filter(Program.authorization_active == True).count(),
         "total_jobs": db.query(ScanJob).count(),
         "total_findings": db.query(Finding).count(),
-        "total_notifications": db.query(EmailNotification).count(),
+        "total_notifications": sent_count,
+        "total_notification_records": total_notifications,
+        "failed_notifications": failed_count,
         "total_audit_events": db.query(AuditLog).count(),
         "auto_scan_enabled": settings.AUTO_SCAN_ENABLED,
         "auto_scan_interval_minutes": settings.AUTO_SCAN_INTERVAL_MINUTES
@@ -43,7 +55,7 @@ def toggle_emergency_stop(active: bool):
 @router.post("/test-email")
 def send_test_email(to_email: str = None):
     """Dispatch a test email to verify SMTP configuration."""
-    recipient = to_email or settings.ALERT_TO_EMAIL
+    recipient = to_email or settings.effective_alert_to_email
     success, error = EmailService.send_email_raw(
         to_email=recipient,
         subject="[BUG BOUNTY BOT] Test Alert Notification",
@@ -53,6 +65,52 @@ def send_test_email(to_email: str = None):
         "success": success,
         "recipient": recipient,
         "error": error
+    }
+
+
+@router.get("/notifications")
+def get_recent_notifications(limit: int = 50, db: Session = Depends(get_db)):
+    """Retrieve recent notification dispatch records with status and error details."""
+    records = db.query(EmailNotification).order_by(EmailNotification.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": n.id,
+            "recipient": n.recipient,
+            "subject": n.subject,
+            "status": n.status.value,
+            "error_message": n.error_message,
+            "sent_at": n.sent_at.isoformat() if n.sent_at else None,
+            "created_at": n.created_at.isoformat() if n.created_at else None
+        }
+        for n in records
+    ]
+
+
+@router.post("/resend-alerts")
+def resend_unnotified_findings(db: Session = Depends(get_db)):
+    """Resend email alerts for all existing findings using current SMTP settings."""
+    findings = db.query(Finding).all()
+    sent = 0
+    failed = 0
+    errors = []
+
+    for f in findings:
+        prog = db.query(Program).filter(Program.id == f.program_id).first()
+        prog_name = prog.name if prog else "Authorized Scope"
+        notif = EmailService.send_finding_alert(db, f, prog_name)
+        if notif.status == NotificationStatus.SENT:
+            sent += 1
+        elif notif.status == NotificationStatus.FAILED:
+            failed += 1
+            if notif.error_message and notif.error_message not in errors:
+                errors.append(notif.error_message)
+
+    return {
+        "status": "completed",
+        "total_findings": len(findings),
+        "sent": sent,
+        "failed": failed,
+        "errors": errors
     }
 
 
