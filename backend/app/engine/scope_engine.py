@@ -1,27 +1,14 @@
-"""Scope and Authorization Engine.
-
-The central security gatekeeper of the Bug Bounty Hunter Bot.
-Enforces:
-- Strict destination resolution & anti-SSRF checks
-- Program authorization validity and expiration dates
-- Explicit exclusions (exclusions ALWAYS override inclusions)
-- Conservative wildcard & domain matching
-- CIDR network block matching
-- URL path containment
-- Default-to-DENY policy
-- Audit logging for every evaluation
-"""
 import ipaddress
-import re
+import socket
 from datetime import datetime
-from typing import Optional, List, Tuple
 from urllib.parse import urlparse
+from typing import Tuple, List, Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.emergency import emergency_control
-from backend.app.core.ssrf_protection import validate_destination_safety, extract_host
 from backend.app.core.audit import record_audit_event
+from backend.app.core.ssrf_protection import validate_destination_safety, extract_host
 from backend.app.db.models import (
     Program, AuthorizedAsset, ExcludedAsset, AssetType, ScanMode
 )
@@ -29,28 +16,24 @@ from backend.app.db.models import (
 
 class ScopeVerificationResult(BaseModel):
     allowed: bool
-    decision: str  # ALLOW or DENY
+    decision: str  # ALLOW, DENY, REQUIRE_APPROVAL
     reason: str
     target: str
     normalized_host: str
-    program_id: int
+    program_id: Optional[int] = None
     matched_asset_id: Optional[int] = None
-    rate_limit_rps: float = 1.0
-
-
-def normalize_hostname(target: str) -> str:
-    """Extract and normalize hostname in lower case."""
-    return extract_host(target).lower().rstrip('.')
+    required_mode: Optional[str] = None
 
 
 def match_domain_pattern(host: str, pattern: str) -> bool:
-    """Matches host against a domain or wildcard pattern conservatively.
+    """Evaluate if a host matches a domain or wildcard pattern.
     
-    Examples:
+    Supports standard bug bounty conventions:
     - pattern: 'example.com', host: 'example.com' -> True
+    - pattern: 'example.com', host: 'www.example.com' -> True
+    - pattern: '*.example.com', host: 'example.com' -> True (apex domain included in scope)
     - pattern: '*.example.com', host: 'sub.example.com' -> True
     - pattern: '*.example.com', host: 'a.b.example.com' -> True
-    - pattern: '*.example.com', host: 'example.com' -> False (unless explicitly scoped)
     - pattern: '*.example.com', host: 'attacker-example.com' -> False
     """
     pattern = pattern.strip().lower().rstrip('.')
@@ -61,9 +44,13 @@ def match_domain_pattern(host: str, pattern: str) -> bool:
 
     if pattern.startswith("*."):
         root_domain = pattern[2:]
-        if host.endswith("." + root_domain):
+        if host == root_domain or host.endswith("." + root_domain):
             return True
         return False
+
+    # A domain scope 'example.com' also covers its subdomains 'sub.example.com'
+    if host.endswith("." + pattern):
+        return True
 
     return False
 
@@ -143,36 +130,40 @@ def verify_target_authorization(
     db: Session,
     program_id: int,
     target: str,
-    requested_mode: ScanMode = ScanMode.PASSIVE,
+    requested_mode: ScanMode = ScanMode.SAFE_CHECKS,
     actor: str = "system"
 ) -> ScopeVerificationResult:
-    """Mandatory verification routine before any scan or network connection.
+    """Central Scope & Authorization Gatekeeper.
     
-    Enforces:
-    1. Global emergency stop status
-    2. Program paused status
-    3. Program existence and active authorization
-    4. Authorization expiration check
-    5. Anti-SSRF / Cloud metadata / Private IP blocking
-    6. Program exclusions (Exclusions ALWAYS win)
-    7. Program in-scope allowlist matching
-    8. Immutable audit logging
+    Enforces the central security invariant:
+    No scanner network request is ever performed on an asset that is not strictly authorized.
+    
+    Verification Flow:
+    1. Validate input format and extract host
+    2. Check Global Emergency Stop (Immediate hard abort)
+    3. Retrieve Program and check active authorization & expiry date
+    4. Check Anti-SSRF destination safety (Prohibit private, loopback, and metadata IPs)
+    5. Check Scope Exclusions (Exclusions override allowlist unconditionally)
+    6. Check In-Scope Allowlist
+    7. Enforce Safety Mode constraints (Mode C requires human approval, Mode D is manual review only)
+    8. Record tamper-evident audit trail log
     """
-    host = normalize_hostname(target)
+    target = target.strip()
+    host = extract_host(target)
 
-    # 1. Check Global Emergency Stop
-    if emergency_control.is_global_stopped():
-        reason = "Operation rejected: Global emergency stop is ACTIVE."
+    # 1. Basic sanity
+    if not target or not host:
+        reason = "Invalid target or empty host provided."
         record_audit_event(db, actor=actor, action="SCOPE_CHECK", decision="DENY", target=target, reason=reason)
         return ScopeVerificationResult(
             allowed=False, decision="DENY", reason=reason, target=target,
-            normalized_host=host, program_id=program_id
+            normalized_host=host or "", program_id=program_id
         )
 
-    # 2. Check Per-Program Pause
-    if emergency_control.is_program_paused(program_id):
-        reason = f"Operation rejected: Program {program_id} is currently PAUSED."
-        record_audit_event(db, actor=actor, action="SCOPE_CHECK", decision="DENY", target=target, reason=reason)
+    # 2. Check Global Emergency Stop
+    if emergency_control.is_global_stopped():
+        reason = "Operation rejected: Global Emergency Stop is active."
+        record_audit_event(db, actor=actor, action="EMERGENCY_STOP_BLOCK", decision="DENY", target=target, reason=reason)
         return ScopeVerificationResult(
             allowed=False, decision="DENY", reason=reason, target=target,
             normalized_host=host, program_id=program_id
@@ -230,7 +221,7 @@ def verify_target_authorization(
         )
 
     # 8. Check In-Scope Allowlist
-    in_scope, matched_asset, match_reason = is_target_in_scope(target, host, program.in_scope_assets)
+    in_scope, matched_asset, scope_reason = is_target_in_scope(target, host, program.in_scope_assets)
     if not in_scope:
         reason = f"Target '{target}' is not in authorized scope allowlist."
         record_audit_event(db, actor=actor, action="OUT_OF_SCOPE_BLOCK", decision="DENY", target=target, reason=reason)
@@ -239,25 +230,42 @@ def verify_target_authorization(
             normalized_host=host, program_id=program_id
         )
 
-    # 9. Target is fully verified and authorized
-    audit_meta = {
-        "matched_asset_id": matched_asset.id if matched_asset else None,
-        "pattern": matched_asset.pattern if matched_asset else None,
-        "mode": requested_mode.value,
-        "resolved_ips": resolved_ips
-    }
+    # 9. Safety Mode Assessment
+    if requested_mode == ScanMode.MANUAL_REVIEW:
+        reason = "Mode D: Target requires manual human review. Automated execution prohibited."
+        record_audit_event(db, actor=actor, action="MODE_D_REVIEW_REQUIRED", decision="DENY", target=target, reason=reason)
+        return ScopeVerificationResult(
+            allowed=False, decision="REQUIRE_MANUAL_REVIEW", reason=reason,
+            target=target, normalized_host=host, program_id=program_id,
+            matched_asset_id=matched_asset.id if matched_asset else None,
+            required_mode="MANUAL_REVIEW"
+        )
+
+    if requested_mode == ScanMode.APPROVAL_REQUIRED:
+        reason = "Mode C: Action requires explicit human approval before execution."
+        record_audit_event(db, actor=actor, action="MODE_C_APPROVAL_REQUIRED", decision="REQUIRE_APPROVAL", target=target, reason=reason)
+        return ScopeVerificationResult(
+            allowed=False, decision="REQUIRE_APPROVAL", reason=reason,
+            target=target, normalized_host=host, program_id=program_id,
+            matched_asset_id=matched_asset.id if matched_asset else None,
+            required_mode="APPROVAL_REQUIRED"
+        )
+
+    # 10. Authorization Granted
+    success_reason = f"Target verified in-scope under program '{program.name}'. {scope_reason}."
     record_audit_event(
-        db, actor=actor, action="SCOPE_VERIFIED", decision="ALLOW", target=target,
-        reason=f"Target verified in-scope under program '{program.name}'", metadata=audit_meta
+        db, actor=actor, action="SCOPE_VERIFIED", decision="ALLOW",
+        target=target, reason=success_reason,
+        metadata={"program_id": program.id, "asset_id": matched_asset.id if matched_asset else None}
     )
 
     return ScopeVerificationResult(
         allowed=True,
         decision="ALLOW",
-        reason=match_reason,
+        reason=success_reason,
         target=target,
         normalized_host=host,
         program_id=program.id,
         matched_asset_id=matched_asset.id if matched_asset else None,
-        rate_limit_rps=program.max_rate_limit or 1.0
+        required_mode=requested_mode.value
     )
