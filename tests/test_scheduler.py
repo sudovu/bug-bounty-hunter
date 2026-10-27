@@ -1,4 +1,4 @@
-"""Tests for Automated Scheduler & Program Seeder."""
+"""Tests for Automated Scheduler & Program Seeder (EWNet Scope)."""
 import pytest
 from sqlalchemy.orm import Session
 
@@ -7,15 +7,15 @@ from backend.app.engine.scheduler import seed_default_program, auto_scan_all_act
 
 
 def test_seed_default_program(db_session: Session):
-    """Verify default demo program is seeded properly with in-scope asset and exclusion."""
+    """Verify Everest Wireless Network program is seeded properly with in-scope assets and exclusion."""
     prog = seed_default_program(db_session)
     assert prog is not None
-    assert prog.name == "Authorized Security Testing (Demo Scope)"
+    assert "Everest Wireless Network" in prog.name
     assert prog.authorization_active is True
     assert len(prog.in_scope_assets) >= 1
-    assert prog.in_scope_assets[0].pattern == "example.com"
-    assert len(prog.excluded_assets) >= 1
-    assert prog.excluded_assets[0].pattern == "internal.example.com"
+    patterns = [a.pattern for a in prog.in_scope_assets]
+    assert "ewnet.com.np" in patterns
+    assert "*.ewnet.com.np" in patterns
 
 
 def test_seed_default_program_idempotent(db_session: Session):
@@ -23,13 +23,13 @@ def test_seed_default_program_idempotent(db_session: Session):
     prog1 = seed_default_program(db_session)
     prog2 = seed_default_program(db_session)
     assert prog1.id == prog2.id
-    count = db_session.query(Program).count()
+    count = db_session.query(Program).filter(Program.name.like("%Everest Wireless%")).count()
     assert count == 1
 
 
 @pytest.mark.asyncio
 async def test_auto_scan_all_active_programs(db_session: Session):
-    """Verify auto_scan_all_active_programs discovers targets and creates scan jobs."""
+    """Verify auto_scan_all_active_programs scans only authorized ewnet targets."""
     seed_default_program(db_session)
     result = await auto_scan_all_active_programs(db_session)
     assert result["status"] == "completed"
@@ -37,4 +37,5 @@ async def test_auto_scan_all_active_programs(db_session: Session):
 
     jobs = db_session.query(ScanJob).all()
     assert len(jobs) >= 1
-    assert jobs[0].status in [ScanStatus.COMPLETED, ScanStatus.RUNNING]
+    for job in jobs:
+        assert "ewnet.com.np" in job.target

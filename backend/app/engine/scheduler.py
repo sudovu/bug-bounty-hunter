@@ -26,21 +26,27 @@ logger = logging.getLogger(__name__)
 
 
 def seed_default_program(db: Session, force: bool = False) -> Program:
-    """Creates a default authorized bug bounty program if none exist."""
-    existing = db.query(Program).first()
-    if existing and not force:
-        return existing
-
-    demo_name = "Authorized Security Testing (Demo Scope)"
-    prog = db.query(Program).filter(Program.name == demo_name).first()
-    if prog:
+    """Creates authorized Everest Wireless Network Pvt. Ltd. audit program if none exist."""
+    ewnet_name = "Everest Wireless Network Pvt. Ltd. (EWNet Audit)"
+    prog = db.query(Program).filter(Program.name == ewnet_name).first()
+    if prog and not force:
+        # Ensure any legacy demo program is deactivated
+        demo_prog = db.query(Program).filter(Program.name == "Authorized Security Testing (Demo Scope)").first()
+        if demo_prog and demo_prog.authorization_active:
+            demo_prog.authorization_active = False
+            db.commit()
         return prog
 
+    # Deactivate any legacy demo programs
+    demo_prog = db.query(Program).filter(Program.name == "Authorized Security Testing (Demo Scope)").first()
+    if demo_prog and demo_prog.authorization_active:
+        demo_prog.authorization_active = False
+
     program = Program(
-        name=demo_name,
-        platform="HackerOne / Disclosure Scope",
-        program_url="https://hackerone.com/security",
-        policy_summary="Authorized automated defensive security checks and header verification.",
+        name=ewnet_name,
+        platform="Organization Internal IT Audit",
+        program_url="https://www.ewnet.com.np",
+        policy_summary="Authorized defensive security & vulnerability audit for Everest Wireless Network Pvt. Ltd. (IT Officer: Bhuwan Gautam).",
         max_rate_limit=2.0,
         authorization_active=True,
     )
@@ -48,21 +54,31 @@ def seed_default_program(db: Session, force: bool = False) -> Program:
     db.commit()
     db.refresh(program)
 
-    # In-scope asset: example.com (standard safe documentation & testing domain per RFC 2606)
-    in_scope = AuthorizedAsset(
-        program_id=program.id,
-        asset_type=AssetType.DOMAIN,
-        pattern="example.com",
-        allowed_methods="GET,HEAD",
-        notes="Standard RFC 2606 authorized safe testing target"
-    )
-    db.add(in_scope)
+    # In-scope assets for Everest Wireless Network Pvt. Ltd.
+    assets_data = [
+        (AssetType.DOMAIN, "ewnet.com.np", "Apex corporate domain"),
+        (AssetType.WILDCARD, "*.ewnet.com.np", "All subdomains of Everest Wireless Network"),
+        (AssetType.DOMAIN, "www.ewnet.com.np", "Primary public web portal"),
+        (AssetType.DOMAIN, "mail.ewnet.com.np", "Organization mail exchange"),
+        (AssetType.DOMAIN, "portal.ewnet.com.np", "Customer self-service portal"),
+        (AssetType.DOMAIN, "billing.ewnet.com.np", "Billing / subscriber portal"),
+    ]
 
-    # Excluded asset: internal.example.com
+    for atype, pattern, notes in assets_data:
+        in_scope = AuthorizedAsset(
+            program_id=program.id,
+            asset_type=atype,
+            pattern=pattern,
+            allowed_methods="GET,HEAD",
+            notes=notes
+        )
+        db.add(in_scope)
+
+    # Excluded asset
     excluded = ExcludedAsset(
         program_id=program.id,
-        pattern="internal.example.com",
-        reason="Internal infrastructure - strictly excluded from scanning"
+        pattern="sandbox-payment.ewnet.com.np",
+        reason="Third party banking payment sandbox - excluded from automated probes"
     )
     db.add(excluded)
 
@@ -75,9 +91,9 @@ def seed_default_program(db: Session, force: bool = False) -> Program:
         action="SEED_PROGRAM",
         decision="SUCCESS",
         target=program.name,
-        reason="Initialized default authorized bug bounty program with in-scope asset and exclusion."
+        reason="Initialized authorized Everest Wireless Network Pvt. Ltd. scope (ewnet.com.np and subdomains)."
     )
-    logger.info(f"Seeded default authorized program: {program.name} (ID: {program.id})")
+    logger.info(f"Seeded authorized organization program: {program.name} (ID: {program.id})")
     return program
 
 
@@ -93,6 +109,7 @@ async def auto_scan_all_active_programs(db: Session) -> Dict[str, Any]:
         return {"status": "noop", "reason": "No active programs", "jobs_created": 0}
 
     jobs_launched = []
+    target_filter = (getattr(settings, "AUTO_SCAN_TARGET_FILTER", "") or "").strip().lower()
 
     for prog in programs:
         for asset in prog.in_scope_assets:
@@ -101,6 +118,13 @@ async def auto_scan_all_active_programs(db: Session) -> Dict[str, Any]:
             target_clean = target.lstrip("*.").strip()
             if not target_clean:
                 continue
+
+            # Strict filter: only scan targets associated with ewnet.com.np if filter is set
+            if target_filter:
+                host_norm = target_clean.lower()
+                if not (host_norm == target_filter or host_norm.endswith("." + target_filter)):
+                    logger.info(f"Auto-scan skipped non-ewnet target '{target_clean}' (filter: {target_filter})")
+                    continue
 
             # Verify authorization gate
             scope_res = verify_target_authorization(

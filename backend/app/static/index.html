@@ -283,11 +283,11 @@
           <p class="text-xs text-slate-400">Download executive Word documents (.docx) or plain text summaries (.txt) ready for disclosure.</p>
         </div>
         <div class="flex items-center space-x-2">
-          <a href="/api/v1/reports/export-all?format=docx" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1.5 shadow transition">
+          <a href="/api/v1/reports/export-all?format=docx&author=Bhuwan%20Gautam%20%28IT%20Officer%2C%20Everest%20Wireless%20Network%20Pvt.%20Ltd.%29" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1.5 shadow transition">
             <i class="fa-solid fa-file-word"></i>
             <span>Export All (.DOCX)</span>
           </a>
-          <a href="/api/v1/reports/export-all?format=txt" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded flex items-center space-x-1.5 shadow transition">
+          <a href="/api/v1/reports/export-all?format=txt&author=Bhuwan%20Gautam%20%28IT%20Officer%2C%20Everest%20Wireless%20Network%20Pvt.%20Ltd.%29" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded flex items-center space-x-1.5 shadow transition">
             <i class="fa-solid fa-file-lines"></i>
             <span>Export All (.TXT)</span>
           </a>
@@ -492,6 +492,9 @@
       </div>
       <div id="modalFindingContent" class="space-y-3 text-xs text-slate-300">
         <!-- Rendered dynamically -->
+      </div>
+      <div id="immediateActionContainer" class="pt-2">
+        <!-- Locked or Unlocked Immediate Action Rendered Dynamically -->
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-darkborder">
         <div class="flex items-center space-x-2">
@@ -812,22 +815,214 @@
       } catch (e) {}
     }
 
+    const DEFAULT_AUDITOR_NAME = "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)";
+    const findingsReportExported = {};
+
+    function getDetailedSolutionHtml(f) {
+      const tit = (f.title || "").toLowerCase();
+      const cat = (f.category || "").toLowerCase();
+      const asset = f.asset || "https://ewnet.com.np";
+
+      if (tit.includes("content-security-policy") || tit.includes("csp")) {
+        return `
+          <div class="space-y-2 text-xs">
+            <div class="text-emerald-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> 1. Executive Remediation Strategy:</div>
+            <p class="text-slate-300">Deploy a strict Content-Security-Policy (CSP) HTTP response header to prevent Cross-Site Scripting (XSS), data-injection, and rogue script execution on Everest Wireless Network portals.</p>
+            
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-server mr-1"></i> 2. Production Server Directives:</div>
+            <div class="space-y-1.5">
+              <div class="text-slate-400 text-[11px] font-mono font-bold">Nginx (/etc/nginx/sites-available/default):</div>
+              <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" always;</pre>
+              <div class="text-slate-400 text-[11px] font-mono font-bold pt-1">Apache (.htaccess or httpd.conf):</div>
+              <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">&lt;IfModule mod_headers.c&gt;
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none';"
+&lt;/IfModule&gt;</pre>
+            </div>
+
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-terminal mr-1"></i> 3. Safe Non-Destructive Verification:</div>
+            <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-blue-300 border border-darkborder">curl -s -I ${asset} | grep -i content-security-policy</pre>
+          </div>
+        `;
+      }
+
+      if (tit.includes("strict-transport-security") || tit.includes("hsts")) {
+        return `
+          <div class="space-y-2 text-xs">
+            <div class="text-emerald-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> 1. Executive Remediation Strategy:</div>
+            <p class="text-slate-300">Enforce HTTP Strict Transport Security (HSTS) on all HTTPS endpoints to compel browsers to communicate exclusively over encrypted HTTPS, mitigating SSL stripping and MITM downgrade attacks.</p>
+
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-server mr-1"></i> 2. Production Server Directives:</div>
+            <div class="space-y-1.5">
+              <div class="text-slate-400 text-[11px] font-mono font-bold">Nginx (/etc/nginx/nginx.conf):</div>
+              <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;</pre>
+              <div class="text-slate-400 text-[11px] font-mono font-bold pt-1">Apache HTTP Server:</div>
+              <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">&lt;IfModule mod_headers.c&gt;
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+&lt;/IfModule&gt;</pre>
+            </div>
+
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-terminal mr-1"></i> 3. Safe Verification Command:</div>
+            <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-blue-300 border border-darkborder">curl -s -I -L ${asset} | grep -i strict-transport-security</pre>
+          </div>
+        `;
+      }
+
+      if (tit.includes("frame") || tit.includes("clickjacking")) {
+        return `
+          <div class="space-y-2 text-xs">
+            <div class="text-emerald-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> 1. Executive Remediation Strategy:</div>
+            <p class="text-slate-300">Disallow third-party framing of web portals to eliminate Clickjacking and UI redressing attacks.</p>
+            <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">Nginx:  add_header X-Frame-Options "SAMEORIGIN" always;
+Apache: Header always set X-Frame-Options "SAMEORIGIN"</pre>
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-terminal mr-1"></i> 2. Safe Verification Command:</div>
+            <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-blue-300 border border-darkborder">curl -s -I ${asset} | grep -i x-frame-options</pre>
+          </div>
+        `;
+      }
+
+      if (tit.includes("content-type-options") || tit.includes("nosniff")) {
+        return `
+          <div class="space-y-2 text-xs">
+            <div class="text-emerald-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> 1. Executive Remediation Strategy:</div>
+            <p class="text-slate-300">Prevent MIME sniffing by instructing browsers to strictly adhere to declared content types.</p>
+            <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">Nginx:  add_header X-Content-Type-Options "nosniff" always;
+Apache: Header always set X-Content-Type-Options "nosniff"</pre>
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-terminal mr-1"></i> 2. Safe Verification Command:</div>
+            <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-blue-300 border border-darkborder">curl -s -I ${asset} | grep -i x-content-type-options</pre>
+          </div>
+        `;
+      }
+
+      if (tit.includes("banner") || tit.includes("server") || tit.includes("version")) {
+        return `
+          <div class="space-y-2 text-xs">
+            <div class="text-emerald-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> 1. Executive Remediation Strategy:</div>
+            <p class="text-slate-300">Mask or strip verbose server software and version numbers to prevent automated attacker profiling.</p>
+            <pre class="bg-black/70 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto border border-darkborder whitespace-pre-wrap">Nginx:  server_tokens off;
+Apache: ServerTokens Prod && ServerSignature Off</pre>
+            <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-terminal mr-1"></i> 2. Safe Verification Command:</div>
+            <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-blue-300 border border-darkborder">curl -s -I ${asset} | grep -E -i "server:|x-powered-by"</pre>
+          </div>
+        `;
+      }
+
+      // Default rich structured solution
+      return `
+        <div class="space-y-2 text-xs">
+          <div class="text-emerald-400 font-semibold"><i class="fa-solid fa-shield-halved mr-1"></i> 1. Detailed Technical Plan:</div>
+          <p class="text-slate-300 whitespace-pre-wrap">${f.recommended_remediation || 'Enforce defensive security controls and vendor hardening guidelines.'}</p>
+          <div class="text-emerald-400 font-semibold pt-1"><i class="fa-solid fa-terminal mr-1"></i> 2. Safe Verification:</div>
+          <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-blue-300 border border-darkborder">curl -s -I ${asset}</pre>
+        </div>
+      `;
+    }
+
+    function renderImmediateActionSection(f) {
+      const isUnlocked = findingsReportExported[f.id] || f.status === 'REPORT_READY' || f.status === 'APPROVED_FOR_VALIDATION' || f.status === 'RESOLVED';
+      const container = document.getElementById('immediateActionContainer');
+
+      if (!isUnlocked) {
+        container.innerHTML = `
+          <div class="p-3 bg-amber-950/40 border border-amber-800/60 rounded-lg text-xs space-y-1.5 shadow">
+            <div class="flex items-center text-amber-300 font-bold space-x-2">
+              <i class="fa-solid fa-lock"></i>
+              <span>Immediate Action Plan Locked (Documentation Required)</span>
+            </div>
+            <p class="text-slate-300 text-[11px]">
+              Per Everest Wireless Network IT audit policy, you must first <strong>Export Word (.docx)</strong>, <strong>Export Text (.txt)</strong>, or <strong>Save Formal Report</strong> below to document the audit trail before immediate action can be taken.
+            </p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="p-3.5 bg-emerald-950/40 border border-emerald-800/70 rounded-lg text-xs space-y-3 shadow">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center text-emerald-300 font-bold space-x-2">
+                <i class="fa-solid fa-bolt text-emerald-400"></i>
+                <span>Immediate Action & Response Plan (Audit Trail Documented)</span>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-900 text-emerald-200 font-mono font-semibold">AUTHORIZED</span>
+            </div>
+            <div class="text-slate-300 text-[11px] space-y-2">
+              <div><strong>Action 1: Target Verification & Inspection Command:</strong></div>
+              <pre class="bg-black/70 p-2 rounded text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap border border-darkborder">${f.safe_reproduction || 'curl -s -I ' + f.asset}</pre>
+              <div class="pt-1"><strong>Action 2: Execute Finding Remediation Lifecycle:</strong></div>
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <button onclick="updateFindingStatus(${f.id}, 'APPROVED_FOR_VALIDATION')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold transition">
+                  <i class="fa-solid fa-screwdriver-wrench mr-1"></i> Mark Under Mitigation
+                </button>
+                <button onclick="updateFindingStatus(${f.id}, 'RESOLVED')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition">
+                  <i class="fa-solid fa-check mr-1"></i> Mark Resolved
+                </button>
+                <button onclick="updateFindingStatus(${f.id}, 'FALSE_POSITIVE')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition">
+                  Mark False Positive
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    async function updateFindingStatus(findingId, newStatus) {
+      try {
+        await apiCall(`/findings/${findingId}/status`, 'PATCH', { status: newStatus });
+        alert(`Finding status updated to: ${newStatus}`);
+        await viewFindingDetail(findingId);
+        loadFindings();
+      } catch (e) {
+        alert("Error updating status: " + e.message);
+      }
+    }
+
     async function viewFindingDetail(findingId) {
       try {
         const f = await apiCall(`/findings/${findingId}`);
         document.getElementById('modalFindingTitle').innerText = `${f.unique_finding_id} — ${f.title}`;
         document.getElementById('modalFindingContent').innerHTML = `
+          <div class="p-2.5 bg-slate-900/80 border border-slate-800 rounded text-xs text-slate-300 flex items-center justify-between">
+            <div><strong>Auditor / Lead IT Officer:</strong> <span class="text-blue-400 font-semibold">Bhuwan Gautam</span> <span class="text-slate-400">(Everest Wireless Network Pvt. Ltd.)</span></div>
+            <span class="text-[10px] font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded">Target: ewnet.com.np</span>
+          </div>
           <div><strong>Category:</strong> ${f.category}</div>
-          <div><strong>Target:</strong> <code class="font-mono">${f.asset}</code></div>
-          <div><strong>Severity:</strong> ${f.severity} • <strong>Confidence:</strong> ${f.confidence}</div>
+          <div><strong>Target:</strong> <code class="font-mono text-blue-300">${f.asset}</code></div>
+          <div><strong>Severity:</strong> <span class="font-bold text-amber-400">${f.severity}</span> • <strong>Confidence:</strong> ${f.confidence} • <strong>Status:</strong> ${f.status}</div>
           <div class="pt-2"><strong>Description:</strong><p class="text-slate-300 mt-1">${f.description}</p></div>
-          <div class="pt-2"><strong>Evidence Summary:</strong><pre class="bg-slate-900 p-2 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap">${f.evidence_summary}</pre></div>
-          <div class="pt-2"><strong>Safe Reproduction:</strong><pre class="bg-slate-900 p-2 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap">${f.safe_reproduction || 'N/A'}</pre></div>
-          <div class="pt-2"><strong>Remediation:</strong><p class="text-slate-300 mt-1">${f.recommended_remediation || 'Standard hardening'}</p></div>
+          <div class="pt-2"><strong>Evidence Summary:</strong><pre class="bg-slate-900 p-2.5 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap border border-darkborder">${f.evidence_summary}</pre></div>
+          <div class="pt-2"><strong>Safe Reproduction:</strong><pre class="bg-slate-900 p-2.5 rounded text-[11px] font-mono text-slate-200 mt-1 whitespace-pre-wrap border border-darkborder">${f.safe_reproduction || 'N/A'}</pre></div>
+          <div class="pt-2 border-t border-darkborder">
+            <div class="font-bold text-slate-200 pb-1 flex items-center space-x-1.5">
+              <i class="fa-solid fa-code text-blue-400"></i>
+              <span>Detailed Technical Solution & Remediation Plan</span>
+            </div>
+            ${getDetailedSolutionHtml(f)}
+          </div>
         `;
-        document.getElementById('btnExportDocx').href = `/api/v1/reports/finding/${f.id}/export?format=docx`;
-        document.getElementById('btnExportTxt').href = `/api/v1/reports/finding/${f.id}/export?format=txt`;
-        document.getElementById('btnGenerateReport').onclick = () => generateReportFromFinding(f.id);
+
+        renderImmediateActionSection(f);
+
+        const encAuthor = encodeURIComponent(DEFAULT_AUDITOR_NAME);
+        const exportDocxBtn = document.getElementById('btnExportDocx');
+        const exportTxtBtn = document.getElementById('btnExportTxt');
+
+        exportDocxBtn.href = `/api/v1/reports/finding/${f.id}/export?format=docx&author=${encAuthor}`;
+        exportDocxBtn.onclick = () => {
+          findingsReportExported[f.id] = true;
+          renderImmediateActionSection(f);
+        };
+
+        exportTxtBtn.href = `/api/v1/reports/finding/${f.id}/export?format=txt&author=${encAuthor}`;
+        exportTxtBtn.onclick = () => {
+          findingsReportExported[f.id] = true;
+          renderImmediateActionSection(f);
+        };
+
+        document.getElementById('btnGenerateReport').onclick = async () => {
+          await generateReportFromFinding(f.id);
+          findingsReportExported[f.id] = true;
+          renderImmediateActionSection(f);
+        };
+
         openModal('modalFindingDetail');
       } catch (e) {
         alert("Error loading finding: " + e.message);
@@ -837,9 +1032,8 @@
     async function generateReportFromFinding(findingId) {
       try {
         const rep = await apiCall(`/reports/generate/${findingId}`, 'POST');
-        alert("Vulnerability Report Generated! View it in the Reports tab.");
-        closeModal('modalFindingDetail');
-        switchTab('reports');
+        alert("Vulnerability Report Generated! View it in the Reports tab. Immediate Action unlocked.");
+        findingsReportExported[findingId] = true;
       } catch (e) {
         alert("Error generating report: " + e.message);
       }
@@ -920,15 +1114,15 @@
               <div class="text-xs text-slate-400 mt-0.5">Created: ${new Date(r.created_at).toLocaleString()}</div>
             </div>
             <div class="flex items-center space-x-2">
-              <a href="/api/v1/reports/${r.id}/download?format=docx" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1 transition" title="Download Microsoft Word document">
+              <a href="/api/v1/reports/${r.id}/download?format=docx&author=Bhuwan%20Gautam%20%28IT%20Officer%2C%20Everest%20Wireless%20Network%20Pvt.%20Ltd.%29" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1 transition" title="Download Microsoft Word document">
                 <i class="fa-solid fa-file-word"></i>
                 <span>Word (.docx)</span>
               </a>
-              <a href="/api/v1/reports/${r.id}/download?format=txt" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded flex items-center space-x-1 transition" title="Download Plain Text report">
+              <a href="/api/v1/reports/${r.id}/download?format=txt&author=Bhuwan%20Gautam%20%28IT%20Officer%2C%20Everest%20Wireless%20Network%20Pvt.%20Ltd.%29" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded flex items-center space-x-1 transition" title="Download Plain Text report">
                 <i class="fa-solid fa-file-lines"></i>
                 <span>Text (.txt)</span>
               </a>
-              <a href="/api/v1/reports/${r.id}/download?format=md" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded flex items-center space-x-1 border border-slate-700 transition" title="Download Markdown file">
+              <a href="/api/v1/reports/${r.id}/download?format=md&author=Bhuwan%20Gautam%20%28IT%20Officer%2C%20Everest%20Wireless%20Network%20Pvt.%20Ltd.%29" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded flex items-center space-x-1 border border-slate-700 transition" title="Download Markdown file">
                 <i class="fa-solid fa-download"></i>
                 <span>Markdown (.md)</span>
               </a>

@@ -10,6 +10,7 @@ import socket
 from datetime import datetime
 from typing import List, Optional
 from backend.app.db.models import FindingSeverity, FindingConfidence, ScanMode
+from backend.app.reports.remediation_catalog import get_detailed_solution
 from backend.app.scanners.base import BaseScanner, RawFindingCandidate
 from backend.app.engine.scope_engine import ScopeVerificationResult
 
@@ -46,7 +47,7 @@ class TLSAnalyzerScanner(BaseScanner):
                 potential_impact="Users may receive browser security warnings or be vulnerable to interception.",
                 safe_reproduction=f"openssl s_client -connect {host}:{port} -servername {host}",
                 policy_reference="CWE-295: Improper Certificate Validation",
-                recommended_remediation="Install a valid certificate issued by a trusted Certificate Authority.",
+                recommended_remediation=get_detailed_solution("TLS Configuration", "Self-Signed or Untrusted TLS Certificate", target),
                 detection_method="safe_tls_check",
                 severity=FindingSeverity.MEDIUM,
                 confidence=FindingConfidence.CONFIRMED
@@ -77,7 +78,7 @@ class TLSAnalyzerScanner(BaseScanner):
                         potential_impact="Causes severe browser warnings and prevents secure client communication.",
                         safe_reproduction=f"openssl s_client -connect {host}:{port} -servername {host}",
                         policy_reference="CWE-298: Impending or Occurred Expiration of Key",
-                        recommended_remediation="Renew and redeploy a valid TLS certificate immediately.",
+                        recommended_remediation=get_detailed_solution("TLS Configuration", "Expired TLS Certificate", target),
                         detection_method="safe_tls_check",
                         severity=FindingSeverity.HIGH,
                         confidence=FindingConfidence.CONFIRMED
@@ -93,7 +94,7 @@ class TLSAnalyzerScanner(BaseScanner):
                         potential_impact="Risk of service interruption if not renewed before expiration.",
                         safe_reproduction=f"openssl s_client -connect {host}:{port} -servername {host}",
                         policy_reference="CWE-298",
-                        recommended_remediation="Renew certificate prior to expiration.",
+                        recommended_remediation=get_detailed_solution("TLS Configuration", "TLS Certificate Expiring Soon", target),
                         detection_method="safe_tls_check",
                         severity=FindingSeverity.INFO,
                         confidence=FindingConfidence.HIGH
@@ -113,7 +114,7 @@ class TLSAnalyzerScanner(BaseScanner):
                 potential_impact="Attackers may exploit protocol design flaws (e.g., BEAST, POODLE) to decrypt traffic.",
                 safe_reproduction=f"openssl s_client -connect {host}:{port} -tls1_1",
                 policy_reference="NIST SP 800-52r2; CWE-326",
-                recommended_remediation="Disable TLS 1.0 and 1.1; enforce TLS 1.2 and TLS 1.3.",
+                recommended_remediation=get_detailed_solution("TLS Configuration", "Deprecated TLS Version Supported", target),
                 detection_method="safe_tls_check",
                 severity=FindingSeverity.MEDIUM,
                 confidence=FindingConfidence.CONFIRMED

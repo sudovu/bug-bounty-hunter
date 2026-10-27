@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     AUTO_SCAN_ENABLED: bool = True
     AUTO_SCAN_INTERVAL_MINUTES: int = 60
     AUTO_SEED_DEFAULT_PROGRAM: bool = True
+    AUTO_SCAN_TARGET_FILTER: str = "ewnet.com.np"  # Restrict automated scheduler strictly to ewnet.com.np targets
+
+    # Reporting & Audit Identity
+    DEFAULT_REPORT_AUTHOR: str = "Bhuwan Gautam (IT Officer, Everest Wireless Network Pvt. Ltd.)"
 
     # Security & SSRF Safeguards
     BLOCK_PRIVATE_NETWORKS: bool = True

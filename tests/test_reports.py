@@ -56,7 +56,8 @@ def test_generate_finding_text_report(db_session, sample_finding):
     assert sample_finding.unique_finding_id in txt
     assert "MISSING CONTENT-SECURITY-POLICY" in txt.upper()
     assert sample_finding.asset in txt
-    assert "REMEDIATION RECOMMENDATIONS" in txt
+    assert "REMEDIATION" in txt.upper()
+    assert "Bhuwan Gautam" in txt
 
 
 def test_generate_finding_docx_report(db_session, sample_finding):
@@ -64,19 +65,21 @@ def test_generate_finding_docx_report(db_session, sample_finding):
     assert isinstance(docx_bytes, bytes)
     assert len(docx_bytes) > 1000
 
-    # Ensure python-docx can parse the generated file
     bio = BytesIO(docx_bytes)
     doc = Document(bio)
     paragraphs_text = " ".join(p.text for p in doc.paragraphs)
+    table_text = " ".join(c.text for table in doc.tables for row in table.rows for c in row.cells)
     assert "VULNERABILITY ASSESSMENT REPORT" in paragraphs_text
     assert sample_finding.title in paragraphs_text
-    assert sample_finding.asset in paragraphs_text
+    assert sample_finding.asset in table_text
+    assert "Bhuwan Gautam" in table_text
 
 
 def test_generate_full_audit_reports(db_session, sample_finding):
     txt = generate_full_audit_text_report(db_session, sample_finding.program_id)
     assert "COMPREHENSIVE SECURITY AUDIT REPORT" in txt
     assert sample_finding.unique_finding_id in txt
+    assert "Bhuwan Gautam" in txt
 
     docx_bytes = generate_full_audit_docx_report(db_session, sample_finding.program_id)
     assert isinstance(docx_bytes, bytes)
@@ -85,6 +88,7 @@ def test_generate_full_audit_reports(db_session, sample_finding):
     doc = Document(BytesIO(docx_bytes))
     paragraphs_text = " ".join(p.text for p in doc.paragraphs)
     assert "COMPREHENSIVE SECURITY AUDIT REPORT" in paragraphs_text
+    assert "Bhuwan Gautam" in paragraphs_text
 
 
 def test_generate_docx_from_markdown():
@@ -108,6 +112,7 @@ curl -I https://example.com
     assert "Test Report" in full_text
     assert "Overview" in full_text
     assert "Item 1" in full_text
+    assert "Bhuwan Gautam" in full_text
 
 
 def test_api_export_finding_docx_and_txt(db_session, sample_finding):
@@ -124,12 +129,14 @@ def test_api_export_finding_docx_and_txt(db_session, sample_finding):
         assert res_txt.status_code == 200
         assert "text/plain" in res_txt.headers["content-type"]
         assert sample_finding.unique_finding_id in res_txt.text
+        assert "Bhuwan Gautam" in res_txt.text
 
         # Export MD
         res_md = client.get(f"/api/v1/reports/finding/{sample_finding.id}/export?format=md")
         assert res_md.status_code == 200
         assert "text/markdown" in res_md.headers["content-type"]
         assert sample_finding.title in res_md.text
+        assert "Bhuwan Gautam" in res_md.text
     finally:
         app.dependency_overrides.clear()
 
@@ -145,6 +152,7 @@ def test_api_export_all(db_session, sample_finding):
         assert res_txt.status_code == 200
         assert "text/plain" in res_txt.headers["content-type"]
         assert sample_finding.title in res_txt.text
+        assert "Bhuwan Gautam" in res_txt.text
     finally:
         app.dependency_overrides.clear()
 

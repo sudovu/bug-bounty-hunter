@@ -12,6 +12,7 @@ Checks for:
 import httpx
 from typing import List
 from backend.app.db.models import FindingSeverity, FindingConfidence, ScanMode
+from backend.app.reports.remediation_catalog import get_detailed_solution
 from backend.app.scanners.base import BaseScanner, RawFindingCandidate
 from backend.app.engine.scope_engine import ScopeVerificationResult
 
@@ -57,7 +58,7 @@ class SecurityHeadersScanner(BaseScanner):
                 potential_impact="Increases vulnerability to XSS attacks if user input is reflected or stored without adequate context-aware sanitization.",
                 safe_reproduction=f"curl -I {url}",
                 policy_reference="OWASP Top 10 - A03:2021 Injection; CWE-1021",
-                recommended_remediation="Define and deploy a restrictive Content-Security-Policy (e.g., default-src 'self').",
+                recommended_remediation=get_detailed_solution("Missing Defensive Security Header", "Missing Content-Security-Policy (CSP) Header", url),
                 detection_method="safe_passive_check",
                 severity=FindingSeverity.LOW,
                 confidence=FindingConfidence.CONFIRMED
@@ -75,7 +76,7 @@ class SecurityHeadersScanner(BaseScanner):
                 potential_impact="Attackers on the local network could downgrade initial user connections from HTTPS to unencrypted HTTP.",
                 safe_reproduction=f"curl -I {url}",
                 policy_reference="OWASP Top 10 - A05:2021 Security Misconfiguration; CWE-319",
-                recommended_remediation="Add 'Strict-Transport-Security: max-age=31536000; includeSubDomains; preload' to all HTTPS responses.",
+                recommended_remediation=get_detailed_solution("Missing Defensive Security Header", "Missing HTTP Strict-Transport-Security (HSTS) Header", url),
                 detection_method="safe_passive_check",
                 severity=FindingSeverity.LOW,
                 confidence=FindingConfidence.CONFIRMED
@@ -93,7 +94,7 @@ class SecurityHeadersScanner(BaseScanner):
                 potential_impact="Users could be tricked into clicking invisible interface elements on attacker-controlled framing pages.",
                 safe_reproduction=f"curl -I {url}",
                 policy_reference="OWASP Top 10 - A05:2021 Security Misconfiguration; CWE-1021",
-                recommended_remediation="Configure 'X-Frame-Options: DENY' or 'X-Frame-Options: SAMEORIGIN'.",
+                recommended_remediation=get_detailed_solution("Clickjacking Protection", "Missing Anti-Clickjacking Header (X-Frame-Options)", url),
                 detection_method="safe_passive_check",
                 severity=FindingSeverity.LOW,
                 confidence=FindingConfidence.HIGH
@@ -111,7 +112,7 @@ class SecurityHeadersScanner(BaseScanner):
                 potential_impact="MIME type confusion may permit untrusted user uploads (like images) to execute as JavaScript in vulnerable browsers.",
                 safe_reproduction=f"curl -I {url}",
                 policy_reference="CWE-79; CWE-116",
-                recommended_remediation="Set 'X-Content-Type-Options: nosniff' across all HTTP responses.",
+                recommended_remediation=get_detailed_solution("Missing Defensive Security Header", "Missing X-Content-Type-Options Header", url),
                 detection_method="safe_passive_check",
                 severity=FindingSeverity.INFO,
                 confidence=FindingConfidence.CONFIRMED
@@ -131,7 +132,7 @@ class SecurityHeadersScanner(BaseScanner):
                 potential_impact="May allow unauthorized third-party origins to access authenticated responses if browser validation fails.",
                 safe_reproduction=f"curl -H 'Origin: https://evil.example.com' -I {url}",
                 policy_reference="OWASP Top 10 - A01:2021 Broken Access Control; CWE-942",
-                recommended_remediation="Whitelist only trusted origins explicitly rather than using wildcard '*'.",
+                recommended_remediation=get_detailed_solution("CORS Misconfiguration", "Overly Permissive CORS with Credentials Enabled", url),
                 detection_method="safe_passive_check",
                 severity=FindingSeverity.MEDIUM,
                 confidence=FindingConfidence.HIGH
@@ -150,7 +151,7 @@ class SecurityHeadersScanner(BaseScanner):
                 potential_impact="Simplifies automated attacker profiling of known software vulnerabilities.",
                 safe_reproduction=f"curl -I {url}",
                 policy_reference="OWASP Top 10 - A05:2021 Security Misconfiguration; CWE-200",
-                recommended_remediation="Mask or suppress granular server version headers in web server configuration.",
+                recommended_remediation=get_detailed_solution("Information Disclosure", "Detailed Server Version Banner Disclosed", url),
                 detection_method="safe_passive_check",
                 severity=FindingSeverity.INFO,
                 confidence=FindingConfidence.CONFIRMED
