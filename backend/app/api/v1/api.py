@@ -1,6 +1,7 @@
 """API Router Configuration."""
 from fastapi import APIRouter
 from backend.app.api.v1.endpoints import (
+    auth,
     programs,
     scans,
     findings,
@@ -10,6 +11,7 @@ from backend.app.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication & Users"])
 api_router.include_router(programs.router, prefix="/programs", tags=["Programs & Scope"])
 api_router.include_router(scans.router, prefix="/scans", tags=["Scans"])
 api_router.include_router(findings.router, prefix="/findings", tags=["Findings"])

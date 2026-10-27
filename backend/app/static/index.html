@@ -24,6 +24,76 @@
 </head>
 <body class="bg-darkbg text-slate-100 min-h-screen flex flex-col font-sans">
   
+  <!-- Auth Screen Overlay (Login & Initial Setup Wizard) -->
+  <div id="authOverlay" class="fixed inset-0 bg-slate-950/95 z-[100] flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-darkcard border border-darkborder rounded-xl shadow-2xl p-6 space-y-6">
+      
+      <!-- Brand Header -->
+      <div class="text-center space-y-2">
+        <div class="inline-flex p-3 bg-blue-950 border border-blue-800 rounded-2xl text-blue-400 text-2xl shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 id="authTitle" class="text-lg font-bold text-white tracking-tight">Security Operations Login</h2>
+        <p id="authSubtitle" class="text-xs text-slate-400">Authenticate to access the Bug Bounty Hunter Bot console.</p>
+      </div>
+
+      <!-- Error / Alert Banner -->
+      <div id="authErrorBanner" class="hidden p-3 rounded-lg text-xs bg-rose-950/80 border border-rose-800 text-rose-300 flex items-start space-x-2">
+        <i class="fa-solid fa-circle-exclamation mt-0.5 text-rose-400"></i>
+        <span id="authErrorText" class="flex-1"></span>
+      </div>
+
+      <!-- Form 1: Initial Setup Wizard (Shown when 0 users exist) -->
+      <form id="setupWizardForm" onsubmit="handleSetupSubmit(event)" class="hidden space-y-3.5 text-xs">
+        <div class="p-3 bg-blue-950/50 border border-blue-800/80 rounded-lg text-blue-300 text-[11px] flex items-center space-x-2">
+          <i class="fa-solid fa-wand-magic-sparkles text-blue-400"></i>
+          <span>Welcome! Create your Master Administrator credentials to initialize the system.</span>
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Master Username *</label>
+          <input id="setupUsername" type="text" required placeholder="admin" autocomplete="username" class="w-full bg-slate-900 border border-darkborder rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Master Email Address *</label>
+          <input id="setupEmail" type="email" required placeholder="admin@example.com" autocomplete="email" class="w-full bg-slate-900 border border-darkborder rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Password (min 8 characters) *</label>
+          <input id="setupPassword" type="password" required minlength="8" placeholder="••••••••••••" autocomplete="new-password" class="w-full bg-slate-900 border border-darkborder rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Confirm Password *</label>
+          <input id="setupConfirmPassword" type="password" required minlength="8" placeholder="••••••••••••" autocomplete="new-password" class="w-full bg-slate-900 border border-darkborder rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+        </div>
+        <button type="submit" id="btnSubmitSetup" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition shadow-md flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-lock"></i>
+          <span>Initialize Master Admin</span>
+        </button>
+      </form>
+
+      <!-- Form 2: Regular Login Form (Shown when users exist) -->
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Username or Email *</label>
+          <input id="loginUsername" type="text" required placeholder="admin or email@example.com" autocomplete="username" class="w-full bg-slate-900 border border-darkborder rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Password *</label>
+          <input id="loginPassword" type="password" required placeholder="••••••••••••" autocomplete="current-password" class="w-full bg-slate-900 border border-darkborder rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+        </div>
+        <button type="submit" id="btnSubmitLogin" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition shadow-md flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span>Sign In</span>
+        </button>
+      </form>
+
+      <div class="text-center pt-2 border-t border-darkborder text-[11px] text-slate-500 flex items-center justify-center space-x-1.5">
+        <i class="fa-solid fa-lock text-slate-600"></i>
+        <span>Session protected via cryptographically signed JWT tokens</span>
+      </div>
+    </div>
+  </div>
+  
   <!-- Navigation Header -->
   <header class="bg-darkcard border-b border-darkborder sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
@@ -50,6 +120,19 @@
           <i class="fa-solid fa-triangle-exclamation"></i>
           <span>EMERGENCY STOP</span>
         </button>
+
+        <!-- User Status Badge & Logout -->
+        <div id="userHeaderBadge" class="hidden items-center space-x-2.5 border-l border-darkborder pl-4 text-xs">
+          <div class="flex items-center space-x-1.5">
+            <i class="fa-solid fa-user-shield text-blue-400"></i>
+            <span id="headerUsername" class="font-semibold text-slate-200"></span>
+            <span id="headerRoleBadge" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 uppercase">ADMIN</span>
+          </div>
+          <button onclick="logout()" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/60 hover:text-rose-300 text-slate-300 text-xs transition flex items-center space-x-1" title="Sign Out">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span class="hidden sm:inline">Logout</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -381,6 +464,38 @@
         </div>
       </div>
 
+      <!-- User & Access Management (Admin only) -->
+      <div id="userManagementCard" class="bg-darkcard border border-darkborder p-5 rounded-lg space-y-4">
+        <div class="flex justify-between items-center border-b border-darkborder pb-3">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-users-gear text-blue-400"></i>
+              Authorized Operators & Access Control
+            </h3>
+            <p class="text-xs text-slate-400">Manage team accounts, assign roles, and revoke operator access.</p>
+          </div>
+          <button onclick="openModal('modalCreateUser')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Add Operator</span>
+          </button>
+        </div>
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+            <tr>
+              <th class="p-2.5">User</th>
+              <th class="p-2.5">Email</th>
+              <th class="p-2.5">Role</th>
+              <th class="p-2.5">Status</th>
+              <th class="p-2.5">Created</th>
+              <th class="p-2.5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody" class="divide-y divide-darkborder">
+            <tr><td colspan="6" class="p-3 text-center text-slate-500">Loading accounts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- Recent Notification Delivery Logs -->
       <div class="bg-darkcard border border-darkborder rounded-lg overflow-hidden space-y-3 p-4">
         <div class="flex justify-between items-center">
@@ -412,6 +527,46 @@
   </main>
 
   <!-- MODALS -->
+
+  <!-- Modal: Create Operator Account (Admin Only) -->
+  <div id="modalCreateUser" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+    <div class="bg-darkcard border border-darkborder w-full max-w-md rounded-lg p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b border-darkborder pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <i class="fa-solid fa-user-plus text-blue-400"></i>
+          <span>Create Operator Account</span>
+        </h3>
+        <button onclick="closeModal('modalCreateUser')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateUserSubmit(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Username *</label>
+          <input id="newUserUsername" type="text" required placeholder="e.g. analyst1" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Email Address *</label>
+          <input id="newUserEmail" type="email" required placeholder="analyst@example.com" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Password (min 8 characters) *</label>
+          <input id="newUserPassword" type="password" required minlength="8" placeholder="••••••••••••" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Role / Permissions *</label>
+          <select id="newUserRole" class="w-full bg-slate-900 border border-darkborder rounded p-2 text-slate-200">
+            <option value="reviewer">Reviewer (Can review findings, trigger scans, and approve tests)</option>
+            <option value="admin">Administrator (Full control, manage users, emergency stop)</option>
+            <option value="readonly">Read-Only (Can view findings and reports only)</option>
+          </select>
+        </div>
+        <div id="createUserError" class="hidden text-rose-400 text-[11px]"></div>
+        <div class="flex justify-end space-x-2 pt-3 border-t border-darkborder">
+          <button type="button" onclick="closeModal('modalCreateUser')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-xs font-semibold rounded text-white">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: Create Program -->
   <div id="modalCreateProgram" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
@@ -520,12 +675,34 @@
   <script>
     let currentTab = 'overview';
     let programsCache = [];
+    let currentUser = null;
+
+    function getAuthToken() {
+      return localStorage.getItem('bb_auth_token');
+    }
+
+    function setAuthToken(token) {
+      if (token) localStorage.setItem('bb_auth_token', token);
+      else localStorage.removeItem('bb_auth_token');
+    }
 
     async function apiCall(endpoint, method = 'GET', body = null) {
       try {
-        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        const headers = { 'Content-Type': 'application/json' };
+        const token = getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const options = { method, headers };
         if (body) options.body = JSON.stringify(body);
         const res = await fetch('/api/v1' + endpoint, options);
+
+        if (res.status === 401 && !endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/setup') && !endpoint.startsWith('/auth/status')) {
+          setAuthToken(null);
+          showAuthScreen('login', 'Session expired. Please log in again.');
+          throw new Error('Authentication required');
+        }
+
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));
           throw new Error(err.detail || 'API request failed');
@@ -535,6 +712,225 @@
         console.error(e);
         throw e;
       }
+    }
+
+    function showAuthScreen(mode, errorMsg = '') {
+      const overlay = document.getElementById('authOverlay');
+      const setupForm = document.getElementById('setupWizardForm');
+      const loginForm = document.getElementById('loginForm');
+      const errBanner = document.getElementById('authErrorBanner');
+      const errText = document.getElementById('authErrorText');
+      const title = document.getElementById('authTitle');
+      const subtitle = document.getElementById('authSubtitle');
+
+      overlay.classList.remove('hidden');
+
+      if (errorMsg) {
+        errBanner.classList.remove('hidden');
+        errText.innerText = errorMsg;
+      } else {
+        errBanner.classList.add('hidden');
+      }
+
+      if (mode === 'setup') {
+        title.innerText = "System Initialization";
+        subtitle.innerText = "Create your Master Administrator credentials to initialize the bot.";
+        setupForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+      } else {
+        title.innerText = "Security Operations Login";
+        subtitle.innerText = "Authenticate to access the Bug Bounty Hunter Bot console.";
+        setupForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+      }
+    }
+
+    function hideAuthScreen() {
+      document.getElementById('authOverlay').classList.add('hidden');
+      updateUserHeader();
+    }
+
+    function updateUserHeader() {
+      const badge = document.getElementById('userHeaderBadge');
+      if (!currentUser) {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+        return;
+      }
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+      document.getElementById('headerUsername').innerText = currentUser.username;
+      const roleBadge = document.getElementById('headerRoleBadge');
+      roleBadge.innerText = currentUser.role.toUpperCase();
+      if (currentUser.role === 'admin') {
+        roleBadge.className = "text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 uppercase";
+      } else if (currentUser.role === 'reviewer') {
+        roleBadge.className = "text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 uppercase";
+      } else {
+        roleBadge.className = "text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 uppercase";
+      }
+
+      const userCard = document.getElementById('userManagementCard');
+      if (userCard) {
+        if (currentUser.role === 'admin') userCard.classList.remove('hidden');
+        else userCard.classList.add('hidden');
+      }
+    }
+
+    async function checkAuthStatus() {
+      try {
+        const res = await apiCall('/auth/status');
+        if (res.setup_required) {
+          showAuthScreen('setup');
+          return false;
+        }
+        if (res.authenticated && res.user) {
+          currentUser = res.user;
+          hideAuthScreen();
+          return true;
+        }
+        if (getAuthToken()) {
+          try {
+            const me = await apiCall('/auth/me');
+            currentUser = me;
+            hideAuthScreen();
+            return true;
+          } catch (e) {
+            setAuthToken(null);
+          }
+        }
+        showAuthScreen('login');
+        return false;
+      } catch (e) {
+        showAuthScreen('login', e.message);
+        return false;
+      }
+    }
+
+    async function handleSetupSubmit(e) {
+      e.preventDefault();
+      const errBanner = document.getElementById('authErrorBanner');
+      const errText = document.getElementById('authErrorText');
+      const username = document.getElementById('setupUsername').value.trim();
+      const email = document.getElementById('setupEmail').value.trim();
+      const password = document.getElementById('setupPassword').value;
+      const confirm_password = document.getElementById('setupConfirmPassword').value;
+
+      if (password !== confirm_password) {
+        errBanner.classList.remove('hidden');
+        errText.innerText = "Passwords do not match.";
+        return;
+      }
+
+      try {
+        const res = await apiCall('/auth/setup', 'POST', { username, email, password, confirm_password });
+        setAuthToken(res.access_token);
+        currentUser = res.user;
+        hideAuthScreen();
+        loadStatus();
+        loadProgramsDropdown();
+      } catch (err) {
+        errBanner.classList.remove('hidden');
+        errText.innerText = err.message || "Failed to initialize administrator.";
+      }
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const errBanner = document.getElementById('authErrorBanner');
+      const errText = document.getElementById('authErrorText');
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await apiCall('/auth/login', 'POST', { username, password });
+        setAuthToken(res.access_token);
+        currentUser = res.user;
+        hideAuthScreen();
+        loadStatus();
+        loadProgramsDropdown();
+      } catch (err) {
+        errBanner.classList.remove('hidden');
+        errText.innerText = err.message || "Invalid username or password.";
+      }
+    }
+
+    function logout() {
+      if (confirm("Are you sure you want to log out?")) {
+        setAuthToken(null);
+        currentUser = null;
+        updateUserHeader();
+        showAuthScreen('login', 'You have been logged out.');
+      }
+    }
+
+    async function loadUsers() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      try {
+        const users = await apiCall('/auth/users');
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = users.map(u => `
+          <tr class="hover:bg-slate-800/50">
+            <td class="p-2.5 font-semibold text-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-user-circle text-slate-400"></i>
+              ${u.username}
+              ${u.id === currentUser.id ? '<span class="text-[10px] text-blue-400">(You)</span>' : ''}
+            </td>
+            <td class="p-2.5 text-slate-400">${u.email}</td>
+            <td class="p-2.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                u.role === 'admin' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
+                u.role === 'reviewer' ? 'bg-purple-950 text-purple-300 border border-purple-800' : 'bg-slate-800 text-slate-300'
+              }">${u.role.toUpperCase()}</span>
+            </td>
+            <td class="p-2.5">
+              <span class="px-1.5 py-0.5 rounded text-[10px] ${u.is_active ? 'text-emerald-400 font-semibold' : 'text-rose-400'}">
+                ${u.is_active ? 'Active' : 'Disabled'}
+              </span>
+            </td>
+            <td class="p-2.5 text-slate-400">${new Date(u.created_at).toLocaleDateString()}</td>
+            <td class="p-2.5 text-right">
+              ${u.id !== currentUser.id ? `
+                <button onclick="deleteUserAccount(${u.id}, '${u.username}')" class="text-rose-400 hover:text-rose-300 text-xs transition" title="Delete Account">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : '<span class="text-slate-600 text-[11px]">—</span>'}
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function handleCreateUserSubmit(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('createUserError');
+      const username = document.getElementById('newUserUsername').value.trim();
+      const email = document.getElementById('newUserEmail').value.trim();
+      const password = document.getElementById('newUserPassword').value;
+      const role = document.getElementById('newUserRole').value;
+
+      try {
+        await apiCall('/auth/users', 'POST', { username, email, password, role });
+        closeModal('modalCreateUser');
+        loadUsers();
+      } catch (err) {
+        errBox.classList.remove('hidden');
+        errBox.innerText = err.message || "Failed to create user account.";
+      }
+    }
+
+    async function deleteUserAccount(id, uname) {
+      if (!confirm(`Are you sure you want to delete user '${uname}'?`)) return;
+      try {
+        await apiCall(`/auth/users/${id}`, 'DELETE');
+        loadUsers();
+      } catch (err) {
+        alert("Error deleting user: " + err.message);
+      }
+    }
+
+    async function loadSettingsTab() {
+      await loadUsers();
     }
 
     function switchTab(tab) {
@@ -1187,10 +1583,13 @@ Apache: ServerTokens Prod && ServerSignature Off</pre>
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-    // Initial load
-    document.addEventListener('DOMContentLoaded', () => {
-      loadStatus();
-      loadProgramsDropdown();
+    // Initial load with authentication verification
+    document.addEventListener('DOMContentLoaded', async () => {
+      const isAuthed = await checkAuthStatus();
+      if (isAuthed) {
+        loadStatus();
+        loadProgramsDropdown();
+      }
     });
   </script>
 </body>
