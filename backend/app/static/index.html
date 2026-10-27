@@ -678,12 +678,15 @@
     let currentUser = null;
 
     function getAuthToken() {
-      return localStorage.getItem('bb_auth_token');
+      // Clear any legacy persistent storage
+      try { localStorage.removeItem('bb_auth_token'); } catch (e) {}
+      return sessionStorage.getItem('bb_auth_token');
     }
 
     function setAuthToken(token) {
-      if (token) localStorage.setItem('bb_auth_token', token);
-      else localStorage.removeItem('bb_auth_token');
+      try { localStorage.removeItem('bb_auth_token'); } catch (e) {}
+      if (token) sessionStorage.setItem('bb_auth_token', token);
+      else sessionStorage.removeItem('bb_auth_token');
     }
 
     async function apiCall(endpoint, method = 'GET', body = null) {
